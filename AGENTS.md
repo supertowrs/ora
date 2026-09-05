@@ -1,89 +1,89 @@
-# Ora — Instrucciones para agentes
+# Ora — Agent instructions
 
-## Cómo trabajar
+## Working conventions
 
-- Actúa como un ingeniero senior: sé conciso, directo y enfocado en terminar la tarea.
-- Prefiere la solución más pequeña, explícita y mantenible. Evita abstracciones, capas y dependencias que no resuelvan una necesidad concreta.
-- Comunica en español. Conserva los cambios ajenos y limita cada modificación al alcance solicitado.
-- Usa `rtk` como prefijo de los comandos de terminal; `rtk proxy` ejecuta sin filtrar la salida. En esta máquina, la referencia es `/Users/david/.codex/RTK.md`.
-- No uses OpenSpec. No crees procesos de aprobación adicionales; respeta la autorización del usuario para cada tarea, incluido el destino de los commits.
+- Act as a senior engineer: be concise, direct, and focused on completing the task.
+- Prefer the smallest explicit, maintainable solution. Avoid abstractions, layers, and dependencies that do not address a concrete need.
+- Communicate in Spanish. Write repository documentation in English. Preserve other people's changes and keep each modification within the requested scope.
+- Prefix terminal commands with `rtk`; `rtk proxy` runs commands without filtering their output.
+- Do not use OpenSpec. Do not introduce additional approval processes; respect the user's authorization for each task, including the destination of commits.
 
-## Producto y alcance
+## Product and scope
 
-Registro horario para una empresa con dos tiendas en Sevilla, hasta diez empleados y administración desde escritorio. Los trabajadores fichan desde su móvil, conservan la sesión y pueden alternar tiendas. La interfaz debe ser muy sencilla: texto claro, botones grandes y pocas decisiones.
+Time tracking for a company with two stores, up to ten employees, and desktop administration. Employees clock in from their phones, stay signed in, and can switch stores. Keep the interface very simple: clear text, large buttons, and few decisions.
 
-El presupuesto de alojamiento y base de datos es **0 €**. Mantén Vercel y Convex; no actives planes de pago, cobro por uso, dominios, SMS, correo ni servicios adicionales sin una nueva instrucción explícita. No añadas nóminas, planificación de turnos, geolocalización, biometría o una arquitectura para múltiples empresas al alcance actual.
+The hosting and database budget is **€0**. Keep Vercel and Convex; do not enable paid plans, usage billing, domains, SMS, email, or additional services without a new explicit instruction. Do not add payroll, shift planning, geolocation, biometrics, or a multi-company architecture to the current scope.
 
-Lee primero [README.md](README.md) para ejecutar y operar la aplicación y [PLAN_IMPLEMENTACION.md](PLAN_IMPLEMENTACION.md) para las decisiones del producto. [VERIFICACION.md](VERIFICACION.md) registra pruebas históricas y limitaciones; no prueba por sí solo el estado actual del servicio. Para recuperación, consulta [docs/RECUPERACION.md](docs/RECUPERACION.md).
+Read [README.md](README.md) first for the product overview, local development, and deployment setup. For recovery, see [docs/RECOVERY.md](docs/RECOVERY.md).
 
-## Arquitectura
+## Architecture
 
-React + TypeScript + Vite, CSS propio y Convex Auth con usuario y contraseña. Vercel sirve una SPA estática; Convex ejecuta las funciones y almacena los datos en Irlanda. No hay Next.js ni un servidor propio.
+React + TypeScript + Vite, custom CSS, and Convex Auth with username and password. Vercel serves a static SPA; Convex runs functions and stores data in the region selected for the deployment. There is no Next.js or custom server.
 
-| Ruta                                                                  | Responsabilidad                                                                                              |
-| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `src/App.tsx`, `src/main.tsx`                                         | Acceso, sesión y selección de interfaz por rol.                                                              |
-| `src/Worker.tsx`                                                      | Fichaje móvil, historial propio y avisos.                                                                    |
-| `src/Admin.tsx`, `Employees.tsx`, `Records.tsx`, `Reports.tsx`        | Panel administrativo, personas, registros e informes. Los cuatro archivos están en `src/`.                   |
-| `src/components/`, `src/styles.css`                                   | Elementos compartidos, documento imprimible y estilos.                                                       |
-| `convex/schema.ts`, `convex/lib.ts`                                   | Modelo de datos, autorización y reglas comunes.                                                              |
-| `convex/app.ts`, `admin.ts`, `accounts.ts`, `reports.ts`, `backup.ts` | API del trabajador, administración, cuentas, informes y recuperación. Los cinco archivos están en `convex/`. |
-| `shared/time.ts`, `reports.ts`, `backup.ts`                           | Horas, CSV y cifrado, compartidos entre interfaz y backend. Los tres archivos están en `shared/`.            |
-| `shared/restore-drill.mts`, `shared/capacity.mts`                     | Ensayo de restauración aislada y estimación sintética de capacidad.                                          |
+| Path                                                                  | Responsibility                                                                                  |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `src/App.tsx`, `src/main.tsx`                                         | Login, authentication sessions, and role-based interface selection.                             |
+| `src/Worker.tsx`                                                      | Mobile clocking, personal history, and notices.                                                 |
+| `src/Admin.tsx`, `Employees.tsx`, `Records.tsx`, `Reports.tsx`        | Administration dashboard, people, records, and reports. All four files are in `src/`.           |
+| `src/components/`, `src/styles.css`                                   | Shared elements, printable document, and styles.                                                |
+| `convex/schema.ts`, `convex/lib.ts`                                   | Data model, authorization, and common rules.                                                    |
+| `convex/app.ts`, `admin.ts`, `accounts.ts`, `reports.ts`, `backup.ts` | Employee API, administration, accounts, reports, and recovery. All five files are in `convex/`. |
+| `shared/time.ts`, `reports.ts`, `backup.ts`                           | Time, CSV, and encryption shared by frontend and backend. All three files are in `shared/`.     |
+| `shared/restore-drill.mts`, `shared/capacity.mts`                     | Isolated restore drill and synthetic capacity estimate.                                         |
 
-Antes de editar código Convex, lee `convex/_generated/ai/guidelines.md` y las funciones que consumen los datos afectados. Los tipos y referencias de `convex/_generated/` se regeneran con Convex; no los edites manualmente. Mantén los argumentos y retornos validados y los permisos en el backend.
+Before editing Convex code, read `convex/_generated/ai/guidelines.md` and the functions that consume the affected data. Convex regenerates the types and references in `convex/_generated/`; do not edit them manually. Keep arguments and return values validated and enforce permissions in the backend.
 
-## Preparación y comandos
+## Setup and commands
 
-Node.js **24** y npm; conserva `package-lock.json` como fuente de versiones instaladas. En una copia nueva:
+Use Node.js **24** and npm; keep `package-lock.json` as the source of installed versions. In a fresh checkout:
 
 ```sh
 rtk proxy npm ci
 rtk proxy cp .env.example .env.local
 ```
 
-El segundo comando es solo para una instalación sin `.env.local`; nunca sobrescribas una configuración existente. Completa `CONVEX_DEPLOYMENT` y `VITE_CONVEX_URL` con el despliegue elegido. Las variables `VITE_` se publican en el navegador: nunca contienen secretos. La compilación exige `VITE_CONVEX_URL`.
+The second command is only for installations without `.env.local`; never overwrite an existing configuration. Set `CONVEX_DEPLOYMENT` and `VITE_CONVEX_URL` for the selected deployment. Variables prefixed with `VITE_` are published in the browser and must never contain secrets. Building requires `VITE_CONVEX_URL`.
 
 ```sh
-rtk proxy npm run dev             # Interfaz en http://127.0.0.1:5173
-rtk proxy npm run dev:backend     # Sincroniza funciones con Convex; modifica el despliegue
+rtk proxy npm run dev             # Frontend at http://127.0.0.1:5173
+rtk proxy npm run dev:backend     # Syncs Convex functions; modifies the deployment
 rtk proxy npm run typecheck
 rtk proxy npm test
 rtk proxy npm run build
-rtk proxy npm run check           # Tipos, pruebas y compilación
+rtk proxy npm run check           # Types, tests, and build
 ```
 
-`npm run setup:dev-auth` prepara autenticación de desarrollo y puede modificar variables remotas. Consúltalo en el README antes de usarlo; no regeneres claves ni cuentas existentes por rutina. Para formatear cambios pequeños, ejecuta Prettier solo sobre los archivos modificados.
+`npm run setup:dev-auth` sets up development authentication and may modify remote variables. Read the README before using it; do not routinely regenerate existing keys or accounts. For small formatting changes, run Prettier only on modified files.
 
-## Entornos y datos
+## Environments and data
 
-- Identifica y anuncia el despliegue efectivo antes de ejecutar `dev`, `deploy`, mutaciones, importaciones o cambios de variables. Contrasta `.env.local`, variables del proceso y opciones de la CLI.
-- La configuración inicial conecta `https://ora-one-rho.vercel.app` con **`dev:accurate-bass-175`**, Irlanda. Verifica que siga siendo así; el alias de producción de Vercel no determina el entorno de Convex.
-- Los pushes a `main` de `supertowrs/ora` despliegan automáticamente frontend y backend desde Vercel, después de ejecutar `npm run check`. `scripts/deploy-vercel.mjs` verifica rama, entorno y clave; las demás ramas no se despliegan. Un push a `main` es también una operación sobre el backend actual. No añadas un segundo despliegue paralelo en GitHub Actions ni uses la clave de este backend en previews.
-- El usuario ya ha empezado a preparar las cuentas definitivas. **Un despliegue etiquetado como desarrollo puede contener datos reales.** No lo uses como base desechable, no insertes fixtures ni ejecutes restauraciones sobre él sin que la tarea lo autorice.
-- `prueba.ana` y `prueba.api` fueron eliminados después de las pruebas iniciales. No los recrees automáticamente ni reutilices credenciales antiguas.
-- Las restauraciones se hacen en un destino vacío y aislado. No sobrescribas el registro operativo ni copies datos reales a previews para probar cambios.
-- No incluyas secretos, contraseñas, exportaciones o datos laborales en Git, logs o despliegues. Respeta `.gitignore` y `.vercelignore`; `.local/`, `.env.local`, `.vercel/`, `.playwright-cli/` y `output/` son privados o generados.
-- Antes de hacer commit, revisa el diff preparado y el destino del push. No fuerces `main`, no sobrescribas historia ajena y no despliegues por el mero hecho de editar documentación.
+- Identify and announce the effective deployment before running `dev`, `deploy`, mutations, imports, or variable changes. Cross-check `.env.local`, process environment variables, and CLI options.
+- Verify which backend each installation uses; Vercel's production alias does not determine the Convex environment. The allowed deployment target is checked in `scripts/deploy-vercel.mjs`.
+- Pushing to `main` in the repository connected to Vercel automatically deploys both frontend and backend from Vercel after running `npm run check`. `scripts/deploy-vercel.mjs` checks the branch, environment, and key; other branches are not deployed. A push to `main` is also an operation on the current backend. Do not add a second parallel deployment through GitHub Actions or use this backend's key in previews.
+- **A deployment labeled as development may contain real data.** Do not treat it as disposable, insert fixtures, or run restores against it unless the task authorizes this.
+- Create test accounts only in isolated environments and do not reuse credentials from other installations.
+- Restore into an empty, isolated target. Do not overwrite operational records or copy real data into previews to test changes.
+- Keep secrets, passwords, exports, and employment data out of Git, logs, and deployment artifacts. Respect `.gitignore` and `.vercelignore`; `.local/`, `.env.local`, `.vercel/`, `.playwright-cli/`, and `output/` are private or generated.
+- Before committing, review the staged diff and push destination. Do not force-push `main`, overwrite other people's history, or deploy merely because documentation was edited.
 
-## Reglas que deben conservarse
+## Rules to preserve
 
-- La identidad procede de la sesión validada por el servidor. Cada trabajador solo consulta sus datos; revocar o desactivar el acceso debe invalidar también las sesiones que ya estaban abiertas.
-- Los fichajes manuales usan la hora del servidor, con precisión de segundos enteros. El horario automático usa los instantes programados en `Europe/Madrid`, calculados y ejecutados por el backend. Guarda instantes UTC en milisegundos; reutiliza `shared/time.ts` para cambios de día, mes y horario de verano.
-- Solo puede haber un tramo abierto por persona. Evita solapamientos y duplicados; conserva las operaciones idempotentes. Cambiar de tienda cierra y abre en el mismo instante.
-- No hay cola de fichajes offline. `app:clock` se llama como acción mediante HTTP para evitar reenvíos automáticos de mutaciones al reconectar. Ante una respuesta incierta se consulta la operación; nunca se da por guardada sin confirmación ni se reenvía como una nueva entrada.
-- Las horas pactadas siguen siendo una referencia independiente. Solo un horario semanal habilitado expresamente genera entradas y salidas. Un periodo terminado no impide cerrar un tramo que seguía abierto.
-- Los tramos creados por un horario conservan exactamente el esquema y el origen `clock` del fichaje manual. El control del horario, la idempotencia y el vínculo con la salida se guardan en tablas separadas; las pantallas, informes y CSV no añaden una marca de automatización.
-- Cambiar o desactivar un horario no recalcula registros anteriores. Una salida pendiente solo puede cerrar su tramo vinculado si sigue intacto; respeta las intervenciones manuales, las correcciones y las anulaciones.
-- Una corrección conserva valores anteriores, valores nuevos, autor y motivo, y sigue siendo visible al trabajador, incluso si mueve un registro a otro mes.
-- Los informes emitidos son versiones congeladas. Una corrección posterior requiere otra versión; no recalcules el informe antiguo. El desglose de horas se revisa explícitamente y la entrega registra su fecha y medio reales.
-- No borres registros laborales por rutina ni al desactivar una cuenta. Conserva el historial y el plazo de conservación definido en el plan; una limpieza de datos ficticios no es una función de borrado general.
-- Las copias manuales son cifradas, se guardan fuera de la app y excluyen contraseñas y sesiones. Poder exportar no demuestra poder recuperar: conserva el ensayo de restauración y la comprobación de relaciones e informes.
+- Identity comes from the server-validated authentication session. Employees can only view their own data; revoking or disabling access must also invalidate sessions that are already open.
+- Manual time entries use server time with whole-second precision. Automatic schedules use instants scheduled in `Europe/Madrid`, calculated and executed by the backend. Store UTC instants in milliseconds; reuse `shared/time.ts` for day, month, and daylight saving transitions.
+- Only one work interval may be open per person. Prevent overlaps and duplicates and preserve idempotency. Switching stores closes and opens intervals at the same instant.
+- There is no offline clocking queue. Call `app:clock` as an action over HTTP to prevent automatic mutation resubmission on reconnection. If the response is uncertain, query the operation; never assume it was saved without confirmation or resend it as a new entry.
+- Agreed working hours remain an independent reference. Only an explicitly enabled weekly schedule generates clock-ins and clock-outs. An ended employment period must not prevent closing an interval that remains open.
+- Intervals created by a schedule retain exactly the same schema and `clock` source as manual entries. Schedule control, idempotency, and the link to the closing event are stored in separate tables; screens, reports, and CSV exports do not add an automation label.
+- Changing or disabling a schedule does not recalculate previous records. A pending clock-out can only close its linked interval if it remains intact; respect manual interventions, corrections, and voided records.
+- Corrections retain previous values, new values, author, and reason, and remain visible to the employee even when moving a record to another month.
+- Issued reports are frozen versions. Later corrections require a new version; do not recalculate old reports. Review the breakdown of hours explicitly, and record the actual delivery date and method.
+- Do not routinely delete employment records or delete them when disabling an account. Preserve history and the planned four-year retention period for records; cleaning up fictional data is not a general deletion feature.
+- Manual backups are encrypted, stored outside the app, and exclude passwords and authentication sessions. Being able to export does not prove recovery works: preserve the restore drill and its relationship and report checks.
 
-## Validación y entrega
+## Validation and delivery
 
-Ejecuta las pruebas pertinentes al cambio. `npm run check` es la comprobación conjunta; no necesita acceder a Convex real. En CI se usa una URL ficticia para compilar. Para cambios solo documentales, basta revisar contenido, rutas y diff.
+Run checks relevant to the change. `npm run check` combines the checks and does not require access to live Convex. CI uses a placeholder URL to build. For documentation-only changes, reviewing content, paths, and the diff is sufficient.
 
-Las pruebas de horas, permisos, concurrencia, correcciones e informes deben comprobar comportamiento significativo. Los cambios de copias requieren verificar cifrado y recuperación. Para cambios de interfaz, prueba el flujo afectado en escritorio y tamaño móvil; una simulación de móvil no acredita Safari ni un teléfono físico. Recarga cuando haya que demostrar persistencia.
+Tests for time calculations, permissions, concurrency, corrections, and reports must check meaningful behavior. Backup changes require encryption and recovery verification. For interface changes, test the affected flow at desktop and mobile sizes; mobile simulation does not prove Safari or physical phone behavior. Reload when persistence needs to be demonstrated.
 
-Al entregar, distingue revisión de código, pruebas automatizadas, navegador real, CI y despliegue. Indica lo comprobado y cualquier limitación material; no presentes una prueba histórica ni una estimación de capacidad como una verificación actual.
+When delivering work, distinguish code review, automated tests, real browser checks, CI, and deployment. State what was checked and any material limitations; do not present historical tests or capacity estimates as current verification.

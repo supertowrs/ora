@@ -1,104 +1,106 @@
 # Ora
 
-Registro de jornada para una empresa con dos tiendas. Web móvil para fichar y panel de administración para personas, periodos laborales, correcciones, informes y copias.
+A time tracking application for a company with two stores. Employees clock in and out from their phones, while administrators manage people, records, and reports from a desktop.
 
-React + TypeScript + Vite, Convex con datos en Irlanda y alojamiento estático en Vercel. No necesita servidores propios, correo, SMS ni servicios de documentos.
+Built with React, TypeScript, and Vite, using Convex for the backend and database, Convex Auth for username and password authentication, and Vercel for static frontend hosting.
 
-Web: **https://ora-one-rho.vercel.app**. Usa el alias público de Vercel y el despliegue **de desarrollo** de Convex `accurate-bass-175`. Los trabajadores ficticios se eliminaron después de las pruebas iniciales; este backend puede contener ya cuentas y datos reales. Las credenciales de administración están en `.local/acceso-inicial.txt`; no forman parte del repositorio. Estado y pruebas iniciales: [VERIFICACION.md](VERIFICACION.md).
+## Features
 
-## Desarrollo
+- Clock in, clock out, and switch stores, with individual history and incident reporting.
+- Manage employees, access, and employment periods with agreed working hours.
+- Optional weekly schedules per employee, with split shifts and excluded dates.
+- Corrections that retain the reason, author, and previous values and remain visible to the employee.
+- Versioned monthly reports, printing, and CSV record downloads.
+- Manual encrypted backups and a restore drill in an isolated environment.
 
-Node.js 24 y npm. Las versiones exactas están fijadas en `package-lock.json`.
+Times are displayed in `Europe/Madrid`. The application is designed for a single company; it does not include payroll, geolocation, or offline clocking. The application interface is in Spanish; labels quoted below match the interface.
+
+## Local development
+
+Requires Node.js **24**, npm, and your own Convex development deployment.
 
 ```sh
 npm ci
 cp .env.example .env.local
 ```
 
-Configurar el despliegue personal de **desarrollo** en `.env.local`. La variable `VITE_CONVEX_URL` es la URL pública del backend; las claves privadas de Convex y de autenticación nunca llevan el prefijo `VITE_`.
+Copy the example file only if you do not already have `.env.local`. Set `CONVEX_DEPLOYMENT` and `VITE_CONVEX_URL` to your deployment's values. Variables prefixed with `VITE_` are public in the browser and must never contain secrets.
+
+Set up authentication and synchronize the backend:
 
 ```sh
 npm run setup:dev-auth
 npm run dev:backend
 ```
 
-En otra terminal:
+These commands modify the selected deployment. Use an isolated environment for development: a backend labeled as development may still contain real data. `setup:dev-auth` preserves existing keys, generates both if neither exists, and sets `SITE_URL`; it requires a development target and rejects a deployment key in the environment. Set `ORA_SITE_URL` to use a different frontend origin.
+
+Start the frontend in another terminal:
 
 ```sh
 npm run dev
 ```
 
-La interfaz se abre en `http://127.0.0.1:5173`. `setup:dev-auth` conserva las claves si ya existen y se niega a actuar sobre un entorno de producción. `ORA_SITE_URL` permite indicar el origen de la interfaz si cambia.
+Open `http://127.0.0.1:5173`.
+
+## Checks
 
 ```sh
-npm run check
+npm run typecheck  # TypeScript
+npm test           # Automated tests
+npm run build      # Production build
+npm run check      # Types, tests, and build
 ```
 
-Comprueba TypeScript, reglas de horas, permisos y operaciones del backend y compilación. No necesita acceder al despliegue ni credenciales; el backend de estas pruebas es el simulador oficial `convex-test`. La comprobación de navegador contra Convex real se documenta por separado en `VERIFICACION.md`.
+Building requires `VITE_CONVEX_URL`. Tests use `convex-test` and do not require access to the live service. CI builds with a placeholder URL. To validate an installation, also check its flows against its backend and on the browsers and devices that will be used.
 
-## Primera configuración
+## Initial setup
 
-La primera administradora se crea mediante la función interna `accounts:bootstrap`, accesible con las credenciales técnicas del proyecto. Requiere nombre, usuario y contraseña de al menos 14 caracteres y solo funciona sobre una instalación sin empleados. No hay registro público.
+The internal `accounts:bootstrap` function creates the first administrator account, the company, and two initial stores. It requires technical access to the deployment, a name, a username, and a password of at least 14 characters. It only works when there are no employees; public registration is disabled. Store credentials in a password manager.
 
-Desde administración:
+From the administration interface:
 
-1. Completar nombre fiscal, NIF y nombres de ambas tiendas.
-2. Crear las cuentas individuales y sus periodos de actividad, con jornada pactada y vigencia. Ayudar a cada persona a entrar una vez en su móvil.
-3. Añadir un acceso directo a la pantalla de inicio. La sesión se conserva; cerrar sesión exige volver a introducir las credenciales.
-4. Al acabar una campaña, cerrar el periodo laboral. La persona conserva acceso a sus horas. Desactivar la cuenta impide también consultar; reservarlo para retirada de acceso.
+1. Fill in the company details and the names of both stores.
+2. Create individual accounts and employment periods, including agreed hours and effective dates.
+3. Check each person's access from their phone. They can add the website to their home screen.
+4. Configure a weekly schedule only for employees who should have automatic time entries.
 
-Las credenciales iniciales de esta instalación, si se ha inicializado mediante la preparación asistida, se entregan en `.local/acceso-inicial.txt`, excluido de Git y del despliegue. Guardarlas en el gestor de contraseñas de la empresa y retirar ese archivo cuando ya no haga falta.
+Ending an employment period preserves access to history. Disabling an account also revokes its open authentication sessions without deleting its records.
 
-## Uso diario
+## Usage
 
-La persona pulsa **Entrar a trabajar** y elige la tienda. Para terminar pulsa **Salir del trabajo**. En una jornada partida registra ambos tramos. **Cambiar de tienda** conserva la continuidad del trabajo. La aplicación no descuenta pausas automáticamente.
+To clock in, select **Entrar a trabajar** and choose a store. **Salir del trabajo** closes the work interval; **Cambiar de tienda** closes one interval and opens another at the same instant. Record each part of a split shift separately: breaks are not deducted automatically.
 
-Un fichaje solo queda confirmado cuando responde el servidor. Ante pérdida de conexión, anotar la hora real y avisar a la encargada. No hay fichajes offline. Las correcciones requieren motivo, conservan los datos anteriores y se muestran también al empleado.
+A time entry is only confirmed once the server responds. If the connection fails, note the actual time and report the incident so it can be corrected with a reason. There is no offline clocking queue.
 
-La administradora revisa las incidencias y los tramos abiertos, emite el resumen de un mes terminado y comprueba con gestoría el desglose de horas. Los informes emitidos conservan su versión; una rectificación posterior requiere emitir otra. CSV e impresión permiten descargar los documentos sin contratar un servicio. Registrar una entrega exige indicar cuándo y por qué medio se realizó.
+Enable weekly schedules under **Empleados → employee details → Fichaje automático**. They support up to six intervals per day, departures on the following day, and excluded dates. They are independent of agreed hours and do not backfill the past. The backend processes events every minute using their scheduled times; an interruption may delay their appearance. Editing or disabling a schedule does not recalculate previous records and respects manual interventions. Restored schedules remain paused until explicitly saved.
 
-### Horario semanal por empleado
+Administrators review incidents, correct records, and issue reports for completed months. Each report retains its version; a later correction requires a new one. **Registros → Descargar CSV** exports current intervals matching the filters, including open and voided intervals; it does not replace the issued monthly report. Report delivery records the actual date and delivery method.
 
-En **Empleados → ficha de la persona → Fichaje automático**, administración puede habilitar un horario con fecha de inicio y fin opcional. Cada día, de lunes a domingo, admite hasta seis tramos, cada uno con entrada, salida y tienda. Un día sin tramos no genera registros. Para una jornada partida, añade mañana y tarde por separado; la pausa queda fuera del tiempo registrado. La salida al día siguiente se indica expresamente. El botón de copia permite repetir el lunes de martes a viernes.
+## Backups and recovery
 
-El horario está desactivado por defecto y es independiente de las horas contratadas. También permite excluir hasta 31 intervalos de fechas, por ejemplo un cierre o una ausencia. Solo se generan entradas con acceso habilitado, periodo laboral vigente y tienda activa. Al activarlo se programan las próximas entradas, sin rellenar días ni horas anteriores a la activación. Al editarlo se procesan primero los eventos vencidos del horario anterior; la nueva configuración se aplica a las entradas futuras.
+Periodically download an encrypted backup from **Informes** and store it outside the application, keeping its password separately. It includes employment data and reports, but not passwords or authentication sessions. The latest backup indicator confirms generation, not that the file is still available.
 
-Convex comprueba los eventos pendientes cada minuto, aunque nadie abra la aplicación. La hora guardada es la prevista; la aparición del registro puede retrasarse hasta la siguiente ejecución o por una interrupción del servicio. Los tramos tienen el mismo formato y presentación que un fichaje manual, y se corrigen mediante el procedimiento habitual. Los cambios de configuración no recalculan fichajes ni informes anteriores.
+Recovery requires an empty, isolated target and new access credentials. See the [recovery procedure](docs/RECOVERY.md), including the local drill that checks data and relationships. Weekly backups leave a potential data loss window of up to seven days.
 
-Una salida pendiente conserva su hora original al cambiar o desactivar el horario y solo cierra el tramo que abrió si sigue intacto. Una salida manual anticipada no se deshace. Si un fichaje manual, cambio de tienda o corrección impide completar un tramo, administración debe revisar los registros; no se cierra otro tramo por aproximación.
+## Vercel deployment
 
-Las horas se interpretan en `Europe/Madrid`. Si una hora se repite en otoño se usa su primera aparición; si no existe en primavera se omite ese tramo y se crea una incidencia. Tras una interrupción se recuperan de forma acotada los eventos de hasta siete días; los intervalos más antiguos requieren revisión. Durante una copia se pausa la escritura y después se retoman los eventos pendientes.
+`vercel.json` configures the SPA, security headers, and deployment from `main`. The [deploy-vercel.mjs](scripts/deploy-vercel.mjs) script deploys both the backend and frontend and checks the branch, Vercel environment, and Convex target.
 
-En **Registros → Descargar CSV** se descargan los tramos del mes, empleado y tienda seleccionados, también durante el mes en curso. El archivo se abre sin contraseña e incluye entradas y salidas con segundos, duración del tramo, estado y origen. Los tramos abiertos tienen la duración vacía y los anulados se identifican expresamente. Si un tramo cruza de mes, conserva sus fechas y duración completas: esta descarga muestra los registros actuales, no un total mensual ni una versión emitida del informe.
+For your own installation, adjust the allowed target in that script and configure `CONVEX_DEPLOY_KEY` as a secret available only in Vercel's **Production** environment. Set up backend authentication and its `SITE_URL` for the public frontend origin. Never share the key with previews or store it in Git.
 
-## Copias y recuperación
+With Git integration enabled, pushing to `main` starts deployment. Convex injects `VITE_CONVEX_URL` and runs `npm run check` before deploying functions; Vercel then publishes `dist`. Automatic deployment is disabled for other branches. Changing only the frontend URL does not migrate data or authentication.
 
-Cada semana descargar la copia cifrada desde Informes y guardarla fuera de la aplicación, junto con una contraseña de recuperación conservada por separado. El archivo contiene datos laborales, correcciones e informes; no contraseñas ni sesiones. El indicador de última copia acredita su generación, no que el archivo siga disponible en el destino externo.
+A Vercel rollback restores the frontend, not the backend or data. Keep both compatible when deploying changes. Check the limits and terms of your chosen plans before operating an installation.
 
-La restauración se realiza en un despliegue vacío y aislado mediante las funciones internas de `convex/backup.ts`. Después se recupera el acceso administrador con `accounts:recoverAdmin` y se asignan nuevas credenciales al resto. Nunca usar una restauración como método para sobrescribir silenciosamente el registro en funcionamiento. El procedimiento está en [docs/RECUPERACION.md](docs/RECUPERACION.md) y la prueba realizada en [VERIFICACION.md](VERIFICACION.md).
+## Project structure
 
-Una copia semanal deja un intervalo de posible pérdida de hasta siete días. Conservar también los informes emitidos y revisar periódicamente que las copias se pueden abrir.
+| Directory  | Contents                                                          |
+| ---------- | ----------------------------------------------------------------- |
+| `src/`     | Employee and administrator interfaces, components, and styles.    |
+| `convex/`  | Data model, authentication, authorization, and backend functions. |
+| `shared/`  | Time calculations, CSV, encryption, tests, and recovery tools.    |
+| `scripts/` | Authentication setup and Vercel deployment.                       |
+| `docs/`    | Recovery documentation.                                           |
 
-## Alojamiento
-
-El proyecto Vercel `ora` está conectado al repositorio privado `supertowrs/ora`. Cada push a **`main`** inicia automáticamente el despliegue mediante `scripts/deploy-vercel.mjs`:
-
-1. Verifica que la ejecución corresponde a Vercel Production, a `main` y a la clave del backend `dev:accurate-bass-175`.
-2. Convex inyecta `VITE_CONVEX_URL` y ejecuta `npm run check`: tipos, pruebas y compilación estática.
-3. Si esas comprobaciones pasan, publica las funciones e índices de Convex. Después Vercel publica `dist` en la URL habitual.
-
-`CONVEX_DEPLOY_KEY` es un secreto de Vercel disponible solo en **Production**. No se guarda en Git ni se necesita en GitHub Actions. Las demás ramas no generan despliegues automáticos ni modifican este backend. GitHub Actions ejecuta además su comprobación independiente; la publicación usa las pruebas ejecutadas dentro de Vercel como requisito.
-
-La automatización conserva el backend y sus datos actuales. Sigue etiquetado como desarrollo en Convex; migrar a otro despliegue requiere preparar datos y autenticación, cambiar el secreto y actualizar la comprobación de destino del script. No basta con cambiar la URL de la interfaz.
-
-`vercel.json` también configura rutas de la SPA y cabeceras de seguridad. Para desarrollar o compilar localmente, utiliza los comandos de la sección Desarrollo. No ejecutes el script de despliegue para una comprobación local. La integración sigue el [procedimiento de Convex para Vercel](https://docs.convex.dev/production/hosting/vercel).
-
-Un rollback de Vercel restaura la interfaz, no las funciones ni los datos de Convex. Mantén compatibles los cambios entre frontend y backend; para revertir código de ambos, revierte el commit y publica el resultado en `main`.
-
-No activar planes de pago, cobro por uso, dominios ni complementos. Revisar el consumo en ambos proveedores. El objetivo de cero euros depende de sus límites y condiciones actuales; la decisión y su salvedad de Vercel Hobby están recogidas en `PLAN_IMPLEMENTACION.md`.
-
-## Antes de usarla como registro laboral
-
-Completar datos fiscales, reglas de pausas y clasificación de horas con la gestoría; informar a las personas sobre el procedimiento y el tratamiento de sus datos; revisar el convenio y la normativa vigentes. Conservar registros accesibles durante cuatro años y revisar después qué datos siguen sujetos a conservación. No hay borrado automático ni una promesa de inmutabilidad frente al propietario técnico de la base de datos.
-
-Probar el acceso en los móviles que se usarán y realizar un piloto con la administradora y dos personas antes de dar por aceptado el proceso.
+See [AGENTS.md](AGENTS.md) for instructions on working with the code. Keep credentials, exports, and employment data out of the repository and logs; `.gitignore` and `.vercelignore` exclude local and generated files.
