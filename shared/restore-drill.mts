@@ -19,6 +19,8 @@ const TABLES = [
   'corrections',
   'incidents',
   'reports',
+  'schedules',
+  'scheduleOccurrences',
 ] as const;
 type Row = Record<string, unknown>;
 type Backup = {
@@ -45,6 +47,17 @@ function parseBackup(value: unknown): Backup {
     !candidate.tables
   ) {
     throw new Error('Formato de copia funcional no compatible.');
+  }
+  if (
+    (candidate.tables.schedules === undefined) !==
+    (candidate.tables.scheduleOccurrences === undefined)
+  ) {
+    throw new Error('La copia debe incluir ambas tablas del horario.');
+  }
+  // The original version 1 format did not contain weekly schedules.
+  if (candidate.tables.schedules === undefined) {
+    candidate.tables.schedules = [];
+    candidate.tables.scheduleOccurrences = [];
   }
   for (const table of TABLES) {
     if (
@@ -90,13 +103,20 @@ console.log(
 const status: Status = await client.query(makeFunctionReference<'query'>('backup:restoreStatus'), {
   restoreId,
 });
-if (!status || !isDeepStrictEqual(status.expectedCounts, counts))
+if (
+  !status ||
+  !isDeepStrictEqual(
+    Object.fromEntries(TABLES.map((table) => [table, status.expectedCounts[table] ?? 0])),
+    counts,
+  )
+)
   throw new Error('El estado de la restauración no corresponde a esta copia.');
+const restoreTables = TABLES.filter((table) => status.expectedCounts[table] !== undefined);
 
 if (status.status === 'active') {
   for (const table of status.nextTable === null
     ? []
-    : TABLES.slice(TABLES.indexOf(status.nextTable as (typeof TABLES)[number]))) {
+    : restoreTables.slice(restoreTables.indexOf(status.nextTable as (typeof TABLES)[number]))) {
     const rows = backup.tables[table];
     let offset = status.counts[table] ?? 0;
     do {
@@ -170,9 +190,11 @@ for (const table of TABLES) {
   const actual = restored
     .map((row) => normalize(row, true) as Row)
     .sort((a, b) => String(a._id).localeCompare(String(b._id)));
-  const expected = [...backup.tables[table]].sort((a, b) =>
-    String(a._id).localeCompare(String(b._id)),
-  );
+  const expected = backup.tables[table]
+    .map((row) =>
+      table === 'schedules' ? { ...row, restoredPaused: true, nextStartAt: null } : row,
+    )
+    .sort((a, b) => String(a._id).localeCompare(String(b._id)));
   if (!isDeepStrictEqual(actual, expected))
     throw new Error(`FALLO de verificación: ${table} difiere de la copia original.`);
   console.log(
@@ -180,5 +202,5 @@ for (const table of TABLES) {
   );
 }
 console.log(
-  'Ensayo completo: datos, rectificaciones, jornadas e informes coinciden. Ninguna contraseña ni sesión se ha restaurado.',
+  'Ensayo completo: datos, rectificaciones, jornadas e informes coinciden. Ninguna contraseña ni sesión de acceso se ha restaurado. Los horarios quedan en pausa hasta guardar su configuración.',
 );

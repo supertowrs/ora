@@ -20,6 +20,8 @@ import {
   reportFields,
   reportSnapshot,
   sessionFields,
+  scheduleFields,
+  scheduleOccurrenceFields,
   storeFields,
 } from './schema';
 
@@ -33,6 +35,8 @@ const TABLES = [
   'corrections',
   'incidents',
   'reports',
+  'schedules',
+  'scheduleOccurrences',
 ] as const;
 type Table = (typeof TABLES)[number];
 const EXPORT_TTL = 10 * 60 * 1000;
@@ -62,6 +66,20 @@ const portableSession = v.object({
   ...sessionFields,
   employeeId: v.string(),
   storeId: v.string(),
+});
+const portableSchedule = v.object({
+  ...systemFields,
+  ...scheduleFields,
+  employeeId: v.string(),
+  slots: v.array(v.object({ ...scheduleFields.slots.element.fields, storeId: v.string() })),
+});
+const portableScheduleOccurrence = v.object({
+  ...systemFields,
+  ...scheduleOccurrenceFields,
+  scheduleId: v.string(),
+  employeeId: v.string(),
+  storeId: v.string(),
+  sessionId: v.optional(v.string()),
 });
 const portableCorrection = v.object({
   ...systemFields,
@@ -93,6 +111,8 @@ const portableDocument = v.union(
   portableCorrection,
   portableIncident,
   portableReport,
+  portableSchedule,
+  portableScheduleOccurrence,
 );
 const countsValidator = v.object({
   company: v.number(),
@@ -104,6 +124,8 @@ const countsValidator = v.object({
   corrections: v.number(),
   incidents: v.number(),
   reports: v.number(),
+  schedules: v.optional(v.number()),
+  scheduleOccurrences: v.optional(v.number()),
 });
 const batchValidator = v.union(
   v.object({ table: v.literal('company'), rows: v.array(portableCompany) }),
@@ -115,11 +137,19 @@ const batchValidator = v.union(
   v.object({ table: v.literal('corrections'), rows: v.array(portableCorrection) }),
   v.object({ table: v.literal('incidents'), rows: v.array(portableIncident) }),
   v.object({ table: v.literal('reports'), rows: v.array(portableReport) }),
+  v.object({ table: v.literal('schedules'), rows: v.array(portableSchedule) }),
+  v.object({ table: v.literal('scheduleOccurrences'), rows: v.array(portableScheduleOccurrence) }),
 );
 
 function tableName(value: string): Table {
   if (!TABLES.includes(value as Table)) fail('La tabla de la copia no es válida.');
   return value as Table;
+}
+
+// Older version 1 backups predate schedules. Their original table order and
+// counts remain valid, including interrupted restores started before this release.
+function restoreTables(expectedCounts: Record<string, number>): Table[] {
+  return TABLES.filter((table) => expectedCounts[table] !== undefined);
 }
 
 function validateNumericValues(value: unknown): void {
@@ -238,12 +268,11 @@ export const beginRestore = internalMutation({
   },
   returns: v.id('backupJobs'),
   handler: async (ctx, args) => {
+    if ((args.counts.schedules === undefined) !== (args.counts.scheduleOccurrences === undefined))
+      fail('La copia debe incluir ambas tablas del horario.');
     for (const table of TABLES) {
-      if (
-        !Number.isSafeInteger(args.counts[table]) ||
-        args.counts[table] < 0 ||
-        args.counts[table] > 500_000
-      )
+      const count = args.counts[table] ?? 0;
+      if (!Number.isSafeInteger(count) || count < 0 || count > 500_000)
         fail('El recuento de la copia no es válido.');
       if (await ctx.db.query(table).withIndex('by_creation_time').first())
         fail('La restauración solo está permitida en un entorno vacío y aislado.');
@@ -259,7 +288,7 @@ export const beginRestore = internalMutation({
       sourceCreatedAt: args.createdAt,
       tableIndex: 0,
       expectedCounts: args.counts,
-      counts: Object.fromEntries(TABLES.map((table) => [table, 0])),
+      counts: Object.fromEntries(restoreTables(args.counts).map((table) => [table, 0])),
     });
     await ctx.db.insert('company', {
       name: 'Restauración en curso',
@@ -349,7 +378,8 @@ export const restoreBatch = internalMutation({
     )
       fail('La restauración no está activa.');
     const { table, rows } = args.batch;
-    if (TABLES[job.tableIndex ?? 0] !== table || args.offset !== job.counts[table])
+    const tables = restoreTables(job.expectedCounts);
+    if (tables[job.tableIndex ?? 0] !== table || args.offset !== job.counts[table])
       fail(
         'El lote no corresponde al siguiente paso de la restauración. Consulta su estado antes de reintentar.',
       );
@@ -483,6 +513,43 @@ export const restoreBatch = internalMutation({
             }),
           });
         break;
+      case 'schedules':
+        for (const { _id, _creationTime, ...fields } of args.batch.rows)
+          imported.push({
+            sourceId: _id,
+            sourceCreationTime: _creationTime,
+            targetId: await ctx.db.insert('schedules', {
+              ...fields,
+              employeeId: await remap.id('employees', fields.employeeId),
+              slots: await Promise.all(
+                fields.slots.map(async (slot) => ({
+                  ...slot,
+                  storeId: await remap.id('stores', slot.storeId),
+                })),
+              ),
+              // A recovery drill must never generate or close time entries.
+              // Saving the schedule explicitly resumes it from the current time.
+              restoredPaused: true,
+              nextStartAt: null,
+            }),
+          });
+        break;
+      case 'scheduleOccurrences':
+        for (const { _id, _creationTime, ...fields } of args.batch.rows)
+          imported.push({
+            sourceId: _id,
+            sourceCreationTime: _creationTime,
+            targetId: await ctx.db.insert('scheduleOccurrences', {
+              ...fields,
+              scheduleId: await remap.id('schedules', fields.scheduleId),
+              employeeId: await remap.id('employees', fields.employeeId),
+              storeId: await remap.id('stores', fields.storeId),
+              sessionId: fields.sessionId
+                ? await remap.id('sessions', fields.sessionId)
+                : undefined,
+            }),
+          });
+        break;
       case 'reports':
         for (const { _id, _creationTime, ...fields } of args.batch.rows) {
           const snapshot = fields.snapshot;
@@ -518,7 +585,7 @@ export const restoreBatch = internalMutation({
       counts: { ...job.counts, [table]: count },
       tableIndex: nextIndex,
     });
-    return { table, count, nextTable: TABLES[nextIndex] ?? null };
+    return { table, count, nextTable: tables[nextIndex] ?? null };
   },
 });
 
@@ -540,7 +607,7 @@ export const restoreStatus = internalQuery({
       status: job.status,
       counts: job.counts ?? {},
       expectedCounts: job.expectedCounts ?? {},
-      nextTable: TABLES[job.tableIndex ?? 0] ?? null,
+      nextTable: restoreTables(job.expectedCounts ?? {})[job.tableIndex ?? 0] ?? null,
     };
   },
 });
@@ -594,8 +661,11 @@ export const finishRestore = internalMutation({
       job.kind !== 'restore' ||
       job.status !== 'active' ||
       !job.counts ||
-      job.tableIndex !== TABLES.length ||
-      TABLES.some((table) => job.counts?.[table] !== job.expectedCounts?.[table])
+      !job.expectedCounts ||
+      job.tableIndex !== restoreTables(job.expectedCounts).length ||
+      restoreTables(job.expectedCounts).some(
+        (table) => job.counts?.[table] !== job.expectedCounts?.[table],
+      )
     )
       fail('No se puede finalizar: la restauración está incompleta.');
     const company = await ctx.db.query('company').withIndex('by_creation_time').unique();

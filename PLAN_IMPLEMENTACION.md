@@ -116,7 +116,17 @@ Una corrección exige motivo y conserva lo anterior, autor y fecha. El empleado 
 
 Al pasar un fijo discontinuo a inactividad se conservan historial e identidad. Puede consultar sus registros; no iniciar nuevos tramos. Permitir resolver un tramo ya abierto aunque haya terminado el periodo previsto. Al volver en otra campaña se reutiliza su ficha.
 
-La jornada contratada es una referencia con fecha de inicio y fin. Nunca completa fichajes automáticamente, recorta horas registradas, bloquea una salida tardía ni altera meses anteriores al cambiarla.
+La jornada contratada es una referencia con fecha de inicio y fin. No completa fichajes por sí sola, ni recorta horas registradas, ni bloquea salidas tardías, ni altera meses anteriores al cambiarla. La ampliación de horario semanal permite activar explícitamente entradas y salidas por empleado, independientes de esa jornada contratada.
+
+### Ampliación: horario semanal automático
+
+Administración configura de lunes a domingo hasta seis tramos diarios con entrada, salida y tienda, vigencia y hasta 31 intervalos de fechas excluidas. Puede copiar el lunes a los otros días laborables y señalar una salida al día siguiente. La opción está desactivada inicialmente. Activarla no completa el pasado; al editar se procesan los eventos vencidos del horario anterior y se aplica la nueva configuración al futuro. Cada entrada exige empleado habilitado, periodo laboral vigente y tienda activa.
+
+El backend procesa los eventos pendientes cada minuto, sin depender de una sesión del móvil. Los registros conservan los campos y el origen `clock` de un fichaje manual; su presentación, historial, informes y CSV son los mismos. El control del horario y de cada ejecución se conserva por separado. El cálculo de horas y la corrección con motivo siguen usando los tramos existentes.
+
+Los cambios no alteran registros ni informes ya emitidos. Un tramo iniciado conserva su salida prevista y solo se cierra si sigue intacto. Los fichajes manuales, cambios de tienda, correcciones y anulaciones tienen prioridad; los conflictos requieren revisión. Se mantienen exclusión de solapamientos, transacciones e idempotencia, incluidos reintentos y ejecuciones simultáneas.
+
+En `Europe/Madrid`, una hora repetida usa su primera aparición; una inexistente omite el tramo y genera incidencia. La recuperación de eventos tras una interrupción está limitada a siete días, con trabajo acotado por ejecución. Durante las copias se pausa la escritura. La restauración conserva configuración y vínculos, pero mantiene los horarios en pausa hasta que administración los guarde expresamente; no reejecuta el histórico restaurado.
 
 ## 5. Registro, cálculo e informes
 

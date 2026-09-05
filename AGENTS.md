@@ -69,10 +69,12 @@ rtk proxy npm run check           # Tipos, pruebas y compilación
 ## Reglas que deben conservarse
 
 - La identidad procede de la sesión validada por el servidor. Cada trabajador solo consulta sus datos; revocar o desactivar el acceso debe invalidar también las sesiones que ya estaban abiertas.
-- Los fichajes usan la hora del servidor y se guardan en segundos enteros. Guarda instantes UTC y presenta fechas y horas en `Europe/Madrid`; reutiliza `shared/time.ts` para cambios de día, mes y horario de verano.
+- Los fichajes manuales usan la hora del servidor, con precisión de segundos enteros. El horario automático usa los instantes programados en `Europe/Madrid`, calculados y ejecutados por el backend. Guarda instantes UTC en milisegundos; reutiliza `shared/time.ts` para cambios de día, mes y horario de verano.
 - Solo puede haber un tramo abierto por persona. Evita solapamientos y duplicados; conserva las operaciones idempotentes. Cambiar de tienda cierra y abre en el mismo instante.
 - No hay cola de fichajes offline. `app:clock` se llama como acción mediante HTTP para evitar reenvíos automáticos de mutaciones al reconectar. Ante una respuesta incierta se consulta la operación; nunca se da por guardada sin confirmación ni se reenvía como una nueva entrada.
-- Las horas pactadas no generan fichajes, cierres ni descuentos de pausa automáticos. Un periodo terminado no impide cerrar un tramo que seguía abierto.
+- Las horas pactadas siguen siendo una referencia independiente. Solo un horario semanal habilitado expresamente genera entradas y salidas. Un periodo terminado no impide cerrar un tramo que seguía abierto.
+- Los tramos creados por un horario conservan exactamente el esquema y el origen `clock` del fichaje manual. El control del horario, la idempotencia y el vínculo con la salida se guardan en tablas separadas; las pantallas, informes y CSV no añaden una marca de automatización.
+- Cambiar o desactivar un horario no recalcula registros anteriores. Una salida pendiente solo puede cerrar su tramo vinculado si sigue intacto; respeta las intervenciones manuales, las correcciones y las anulaciones.
 - Una corrección conserva valores anteriores, valores nuevos, autor y motivo, y sigue siendo visible al trabajador, incluso si mueve un registro a otro mes.
 - Los informes emitidos son versiones congeladas. Una corrección posterior requiere otra versión; no recalcules el informe antiguo. El desglose de horas se revisa explícitamente y la entrega registra su fecha y medio reales.
 - No borres registros laborales por rutina ni al desactivar una cuenta. Conserva el historial y el plazo de conservación definido en el plan; una limpieza de datos ficticios no es una función de borrado general.

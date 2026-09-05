@@ -13,6 +13,7 @@ import {
 import { api } from '../convex/_generated/api';
 import { localDate } from '../shared/time';
 import type { Employee, Period } from './types';
+import { ScheduleForm } from './components/ScheduleForm';
 import {
   Badge,
   Empty,
@@ -276,9 +277,28 @@ function EmployeeDetails({
   onClose: () => void;
 }) {
   const update = useMutation(api.admin.updateEmployee);
+  const scheduleData = useQuery(
+    api.schedules.get,
+    employee.role === 'worker' ? { employeeId: employee._id } : 'skip',
+  );
   const [period, setPeriod] = useState<Period | 'new' | null>(null);
   const [access, setAccess] = useState<'reset' | 'revoke' | null>(null);
+  const [editingSchedule, setEditingSchedule] = useState(false);
   const [message, setMessage] = useState('');
+  if (editingSchedule && scheduleData) {
+    return (
+      <ScheduleForm
+        employee={employee}
+        schedule={scheduleData.schedule}
+        stores={scheduleData.stores}
+        onClose={() => setEditingSchedule(false)}
+        onSaved={() => {
+          setEditingSchedule(false);
+          setMessage('Horario guardado.');
+        }}
+      />
+    );
+  }
   return (
     <Modal title={employee.name} wide onClose={onClose}>
       <div className="employee-detail-head">
@@ -350,6 +370,43 @@ function EmployeeDetails({
           Añade las fechas de actividad y la jornada contratada para habilitar el fichaje.
         </Empty>
       )}
+      {employee.role === 'worker' && (
+        <>
+          <div className="detail-section-heading">
+            <h3>Fichaje automático</h3>
+            <button
+              className="button secondary small-button"
+              disabled={!scheduleData}
+              onClick={() => setEditingSchedule(true)}
+            >
+              <CalendarDays size={17} /> Configurar horario
+            </button>
+          </div>
+          {scheduleData ? (
+            <div className="schedule-summary">
+              <Badge
+                tone={
+                  scheduleData.schedule?.enabled && !scheduleData.schedule.restoredPaused
+                    ? 'green'
+                    : 'neutral'
+                }
+              >
+                {scheduleData.schedule?.enabled
+                  ? scheduleData.schedule.restoredPaused
+                    ? 'En pausa tras recuperación'
+                    : 'Activado'
+                  : 'Desactivado'}
+              </Badge>
+              <p>
+                Configura entradas, salidas y tienda para cada día, también con jornada partida. Se
+                aplican durante los periodos de trabajo de esta persona.
+              </p>
+            </div>
+          ) : (
+            <Loading text="Cargando horario…" />
+          )}
+        </>
+      )}
       <div className="detail-section-heading">
         <h3>Acceso y recuperación</h3>
         <KeyRound size={19} />
@@ -391,8 +448,8 @@ function PeriodForm({
       onClose={onClose}
     >
       <p className="muted">
-        {employee.name}. La jornada sirve de referencia; los fichajes registran siempre el tiempo
-        real.
+        {employee.name}. La jornada contratada sirve de referencia. El fichaje automático se
+        configura por separado en su ficha.
       </p>
       <Form
         onCancel={onClose}
