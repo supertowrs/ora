@@ -57,6 +57,18 @@ Un fichaje solo queda confirmado cuando responde el servidor. Ante pérdida de c
 
 La administradora revisa las incidencias y los tramos abiertos, emite el resumen de un mes terminado y comprueba con gestoría el desglose de horas. Los informes emitidos conservan su versión; una rectificación posterior requiere emitir otra. CSV e impresión permiten descargar los documentos sin contratar un servicio. Registrar una entrega exige indicar cuándo y por qué medio se realizó.
 
+### Horario semanal por empleado
+
+En **Empleados → ficha de la persona → Fichaje automático**, administración puede habilitar un horario con fecha de inicio y fin opcional. Cada día, de lunes a domingo, admite hasta seis tramos, cada uno con entrada, salida y tienda. Un día sin tramos no genera registros. Para una jornada partida, añade mañana y tarde por separado; la pausa queda fuera del tiempo registrado. La salida al día siguiente se indica expresamente. El botón de copia permite repetir el lunes de martes a viernes.
+
+El horario está desactivado por defecto y es independiente de las horas contratadas. También permite excluir hasta 31 intervalos de fechas, por ejemplo un cierre o una ausencia. Solo se generan entradas con acceso habilitado, periodo laboral vigente y tienda activa. Al activarlo se programan las próximas entradas, sin rellenar días ni horas anteriores a la activación. Al editarlo se procesan primero los eventos vencidos del horario anterior; la nueva configuración se aplica a las entradas futuras.
+
+Convex comprueba los eventos pendientes cada minuto, aunque nadie abra la aplicación. La hora guardada es la prevista; la aparición del registro puede retrasarse hasta la siguiente ejecución o por una interrupción del servicio. Los tramos tienen el mismo formato y presentación que un fichaje manual, y se corrigen mediante el procedimiento habitual. Los cambios de configuración no recalculan fichajes ni informes anteriores.
+
+Una salida pendiente conserva su hora original al cambiar o desactivar el horario y solo cierra el tramo que abrió si sigue intacto. Una salida manual anticipada no se deshace. Si un fichaje manual, cambio de tienda o corrección impide completar un tramo, administración debe revisar los registros; no se cierra otro tramo por aproximación.
+
+Las horas se interpretan en `Europe/Madrid`. Si una hora se repite en otoño se usa su primera aparición; si no existe en primavera se omite ese tramo y se crea una incidencia. Tras una interrupción se recuperan de forma acotada los eventos de hasta siete días; los intervalos más antiguos requieren revisión. Durante una copia se pausa la escritura y después se retoman los eventos pendientes.
+
 En **Registros → Descargar CSV** se descargan los tramos del mes, empleado y tienda seleccionados, también durante el mes en curso. El archivo se abre sin contraseña e incluye entradas y salidas con segundos, duración del tramo, estado y origen. Los tramos abiertos tienen la duración vacía y los anulados se identifican expresamente. Si un tramo cruza de mes, conserva sus fechas y duración completas: esta descarga muestra los registros actuales, no un total mensual ni una versión emitida del informe.
 
 ## Copias y recuperación

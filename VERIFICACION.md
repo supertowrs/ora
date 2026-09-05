@@ -83,3 +83,16 @@ Probar los teléfonos físicos que se utilizarán, incluidos Safari y la persist
 Preparar un despliegue Convex separado con los datos fiscales y centros reales, cuentas individuales y periodos correctos. Revisar con la gestoría el convenio, descansos, clasificación de horas, entrega de resúmenes y procedimiento de registro, además de la información de privacidad. La implementación y sus pruebas no constituyen una certificación jurídica.
 
 Realizar un piloto con la administradora y dos personas. Guardar la copia semanal fuera de la aplicación y su contraseña por separado; comprobar periódicamente la recuperación. Ese calendario admite una posible pérdida de hasta siete días de datos si falla el servicio antes de la siguiente copia.
+
+# Horario semanal por empleado — 5 de septiembre de 2026
+
+Validación de la rama de horarios con datos ficticios, sin modificar el backend operativo ni publicar en Vercel:
+
+- `npm run check`: TypeScript, 86 pruebas y compilación. Incluye 44 pruebas nuevas de horario: permisos, revisiones concurrentes, jornada partida, solapamientos entre días/tiendas, salidas manuales, correcciones, reintentos, interrupciones, cambios de hora y eventos vencidos al editar.
+- Backend Convex real aislado en `127.0.0.1:3320`: primero se publicó la versión anterior y se crearon tres personas ficticias, un registro y un informe congelado de agosto. El esquema y las funciones nuevos se publicaron sobre esos datos, conservándolos.
+- Navegador real: creación y guardado de un horario de doce tramos semanales, copia lunes a martes–viernes, tiendas diferentes y exclusión de fechas. Un solapamiento se rechazó en el servidor. Reabrir y recargar conservó todos los valores. Edición y guardado también comprobados a 390 × 844; el formulario no presenta desbordamiento horizontal. No se ha probado Safari ni un teléfono físico.
+- Cron nativo, sin invocar manualmente la función de proceso: creó y cerró dos tramos el 5 de septiembre, 14:47–14:48 en Tienda 1 y 14:49–14:50 en Tienda 2 (`Europe/Madrid`). La API devolvió el esquema habitual de sesión y `source: clock`; el historial del trabajador mostró 0:02 h después de recargar, sin marcas adicionales ni errores de consola.
+- Una persona sin horario completó entrada y salida mediante la acción HTTP existente. Repetir la entrada con el mismo identificador devolvió la misma sesión.
+- Exportación cifrada de ese backend y ejecución real de `shared/restore-drill.mts` sobre otro destino vacío, `127.0.0.1:3330`: once tablas verificadas campo a campo con relaciones remapeadas; cuatro tramos, un informe congelado, un horario y dos ejecuciones. Las configuraciones restauradas quedan en pausa. Las pruebas automatizadas cubren además copias v1 antiguas y reanudación de restauraciones anteriores.
+
+Estos resultados acreditan la implementación y los entornos locales descritos. La publicación del servicio operativo corresponde al proceso de integración en `main`.

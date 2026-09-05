@@ -2,7 +2,7 @@
 
 La copia descargada desde **Informes → Copia de seguridad** está cifrada en el navegador con AES-256-GCM. La clave se deriva con PBKDF2-SHA256 y 600.000 iteraciones; cada archivo tiene sal e IV aleatorios. Su contraseña se guarda fuera de Ora. No se envía a Convex y no se puede recuperar desde la aplicación.
 
-La copia incluye empresa, tiendas, empleados, periodos laborales, modificaciones de esos periodos, tramos, rectificaciones, incidencias e informes emitidos. No incluye contraseñas, sesiones, tokens ni el historial técnico de reintentos. Los accesos se crean de nuevo después de restaurar.
+La copia incluye empresa, tiendas, empleados, periodos laborales, modificaciones de esos periodos, tramos, rectificaciones, incidencias, informes emitidos, horarios semanales y el estado de ejecución de sus tramos. No incluye contraseñas, sesiones, tokens ni el historial técnico de reintentos. Los accesos se crean de nuevo después de restaurar.
 
 ## Copia semanal
 
@@ -44,13 +44,15 @@ process.exit(result.status ?? 1);
 NODE
 ```
 
-El script descifra localmente, valida la versión, restaura por lotes y remapea las relaciones. Los informes se restauran de uno en uno para limitar las lecturas. Después compara todos los documentos, campo a campo, incluidos tramos, correcciones, jornadas e informes históricos. Los identificadores internos y las fechas técnicas de creación se contrastan mediante la tabla de correspondencias; las horas efectivas y el contenido original se conservan.
+El script descifra localmente, valida la versión, restaura por lotes y remapea las relaciones. Los informes se restauran de uno en uno para limitar las lecturas. Después compara todos los documentos, campo a campo, incluidos tramos, correcciones, jornadas e informes históricos. Los identificadores internos y las fechas técnicas de creación se contrastan mediante la tabla de correspondencias; las horas efectivas y el contenido original se conservan. También se comprueban las tiendas de cada tramo del horario y las relaciones entre horario, empleado y fichaje. Las copias de versión 1 anteriores a esta función siguen siendo compatibles y se restauran sin horarios.
+
+Los horarios restaurados conservan su configuración, pero quedan **en pausa**, con la próxima entrada pendiente de recalcular. Esa pausa y el cursor de ejecución vacío son las únicas diferencias intencionadas que admite la comparación. El proceso periódico no genera entradas ni cierra tramos durante el ensayo, tampoco después de finalizar la restauración. No guardar la configuración de un horario en un ensayo que deba permanecer sin actividad.
 
 Si se interrumpe, el script muestra un `restoreId`. Añadirlo como cuarto elemento de la lista de argumentos, después de la URL, permite reanudar a partir del último lote confirmado. Una restauración incompleta mantiene el destino local en mantenimiento y no se debe dar por recuperada. La reanudación exige utilizar exactamente el mismo archivo.
 
 La comprobación concluye con **«Ensayo completo: datos, rectificaciones, jornadas e informes coinciden»**. Un código de salida distinto de cero o una diferencia entre documentos significa que el ensayo ha fallado. Conservar el resultado técnico sin datos laborales ni secretos.
 
-Para volver a dar acceso después de la verificación, la función interna `accounts:recoverAdmin` vincula una contraseña nueva a la ficha de una administradora restaurada. Después se recuperan los demás accesos de forma asistida. No se reutilizan tokens ni sesiones antiguas.
+Para volver a dar acceso después de la verificación, la función interna `accounts:recoverAdmin` vincula una contraseña nueva a la ficha de una administradora restaurada. Después se recuperan los demás accesos de forma asistida. No se reutilizan tokens ni sesiones antiguas. Para reanudar un horario en el servicio recuperado, revisar y guardar explícitamente su configuración desde Empleados. La reanudación solo programa entradas futuras; los tramos abiertos de la copia se revisan manualmente y no se cierran ni recrean automáticamente.
 
 ## Recuperación futura del servicio real
 

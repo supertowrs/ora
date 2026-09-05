@@ -13,9 +13,11 @@ import type * as admin from "../admin.js";
 import type * as app from "../app.js";
 import type * as auth from "../auth.js";
 import type * as backup from "../backup.js";
+import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as lib from "../lib.js";
 import type * as reports from "../reports.js";
+import type * as schedules from "../schedules.js";
 
 import type {
   ApiFromModules,
@@ -29,9 +31,11 @@ declare const fullApi: ApiFromModules<{
   app: typeof app;
   auth: typeof auth;
   backup: typeof backup;
+  crons: typeof crons;
   http: typeof http;
   lib: typeof lib;
   reports: typeof reports;
+  schedules: typeof schedules;
 }>;
 
 /**

@@ -1,6 +1,6 @@
 # Ora API contract
 
-All instants are UTC milliseconds, local dates/months use Europe/Madrid. Convex IDs are generated branded types. Use `api` from `convex/_generated/api`. Each call checks live session existence; revoked sessions lose access immediately. Login: `signIn("password", { username, password, flow: "signIn" })`. No signup/reset public auth flows. Errors are ConvexError Spanish strings.
+All instants are UTC milliseconds, local dates/months use Europe/Madrid. Convex IDs are generated branded types. Use `api` from `convex/_generated/api`. Authenticated public calls check live session existence; revoked sessions lose access immediately. Login: `signIn("password", { username, password, flow: "signIn" })`. No signup/reset public auth flows. Errors are ConvexError Spanish strings.
 
 ## Documents
 
@@ -38,6 +38,15 @@ All instants are UTC milliseconds, local dates/months use Europe/Madrid. Convex 
 - `savePeriod({periodId?:Id<periods>,employeeId,startDate,endDate:string|null,weeklyMinutes,partTime,distribution}) mutation -> Id<periods>` (add/edit dated history with periodChanges audit; overlapping dates rejected).
 - `correctSession({sessionId?:Id<sessions>,employeeId,storeId,startAt,endAt:number|null,voided:boolean,reason}) mutation -> Id<sessions>` (create missing or correct existing; original audited; overlap rejected).
 - `resolveIncident({incidentId,resolution}) mutation -> null`.
+
+## Employee schedules `api.schedules`
+
+- Admin only: `get({employeeId}) query -> {schedule: Schedule|null, stores:Store[]}`.
+- Admin only: `save({employeeId,enabled,startDate,endDate:string|null,slots,exclusions,expectedRevision?:number}) mutation -> Id<schedules>`. Existing configurations require the revision returned when the editor opened; stale writes are rejected.
+- Slot: `{id:string, weekday:number, startTime:"HH:mm", endTime:"HH:mm", endNextDay:boolean, storeId:Id<stores>}`; Monday=1, Sunday=7. Maximum six slots per day, non-overlapping across weekdays, including Sunday to Monday.
+- Exclusion: `{startDate:"YYYY-MM-DD",endDate:"YYYY-MM-DD"}`, inclusive; maximum 31 ranges.
+- Schedule has the configuration above, `revision`, update metadata and an internal next-entry cursor. Saving applies to future starts only. A restored configuration may have `restoredPaused:true`; explicitly saving clears this pause without replaying restored work.
+- Cron and occurrence processing are internal. They do not authenticate as a worker or change the public manual clock action. They write ordinary Session documents (`source:"clock"`), with scheduler state stored separately. No additional provenance field appears in sessions, reports or CSV.
 
 ## Reports `api.reports`
 

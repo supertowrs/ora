@@ -55,6 +55,43 @@ export const sessionFields = {
   createdAt: v.number(),
   updatedAt: v.number(),
 };
+export const scheduleSlot = v.object({
+  id: v.string(),
+  weekday: v.number(),
+  startTime: v.string(),
+  endTime: v.string(),
+  endNextDay: v.boolean(),
+  storeId: v.id('stores'),
+});
+export const scheduleExclusion = v.object({ startDate: v.string(), endDate: v.string() });
+export const scheduleFields = {
+  employeeId: v.id('employees'),
+  enabled: v.boolean(),
+  startDate: v.string(),
+  endDate: v.union(v.string(), v.null()),
+  slots: v.array(scheduleSlot),
+  exclusions: v.array(scheduleExclusion),
+  revision: v.number(),
+  effectiveAt: v.number(),
+  updatedAt: v.number(),
+  nextStartAt: v.union(v.number(), v.null()),
+  restoredPaused: v.optional(v.boolean()),
+};
+export const scheduleOccurrenceFields = {
+  scheduleId: v.id('schedules'),
+  employeeId: v.id('employees'),
+  revision: v.number(),
+  slotId: v.string(),
+  date: v.string(),
+  storeId: v.id('stores'),
+  startAt: v.number(),
+  endAt: v.number(),
+  status: v.union(v.literal('open'), v.literal('completed'), v.literal('skipped')),
+  sessionId: v.optional(v.id('sessions')),
+  sessionUpdatedAt: v.optional(v.number()),
+  nextCheckAt: v.union(v.number(), v.null()),
+  createdAt: v.number(),
+};
 export const correctionFields = {
   employeeId: v.id('employees'),
   sessionId: v.id('sessions'),
@@ -135,6 +172,13 @@ export default defineSchema({
     .index('by_employeeId_and_endAt', ['employeeId', 'endAt'])
     .index('by_endAt', ['endAt'])
     .index('by_startAt', ['startAt']),
+  schedules: defineTable(scheduleFields)
+    .index('by_employeeId', ['employeeId'])
+    .index('by_nextStartAt', ['nextStartAt']),
+  scheduleOccurrences: defineTable(scheduleOccurrenceFields)
+    .index('by_scheduleId_and_date_and_slotId', ['scheduleId', 'date', 'slotId'])
+    .index('by_scheduleId_and_status', ['scheduleId', 'status'])
+    .index('by_nextCheckAt', ['nextCheckAt']),
   corrections: defineTable(correctionFields)
     .index('by_employeeId_and_createdAt', ['employeeId', 'createdAt'])
     .index('by_sessionId', ['sessionId'])
