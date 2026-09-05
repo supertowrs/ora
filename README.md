@@ -1,106 +1,106 @@
 # Ora
 
-Aplicación de registro horario para una empresa con dos tiendas. Los empleados fichan desde el móvil y administración gestiona personas, registros e informes desde el escritorio.
+A time tracking application for a company with two stores. Employees clock in and out from their phones, while administrators manage people, records, and reports from a desktop.
 
-Construida con React, TypeScript y Vite, con Convex como backend y base de datos, Convex Auth para acceso con usuario y contraseña y Vercel para alojar la interfaz estática.
+Built with React, TypeScript, and Vite, using Convex for the backend and database, Convex Auth for username and password authentication, and Vercel for static frontend hosting.
 
-## Funcionalidades
+## Features
 
-- Entradas, salidas y cambios de tienda, con historial individual e incidencias.
-- Gestión de empleados, acceso y periodos laborales con horas pactadas.
-- Horarios semanales opcionales por empleado, con jornadas partidas y fechas excluidas.
-- Correcciones con motivo, autor y valores anteriores, visibles para el trabajador.
-- Informes mensuales versionados, impresión y descarga de registros en CSV.
-- Copias manuales cifradas y ensayo de restauración en un entorno aislado.
+- Clock in, clock out, and switch stores, with individual history and incident reporting.
+- Manage employees, access, and employment periods with agreed working hours.
+- Optional weekly schedules per employee, with split shifts and excluded dates.
+- Corrections that retain the reason, author, and previous values and remain visible to the employee.
+- Versioned monthly reports, printing, and CSV record downloads.
+- Manual encrypted backups and a restore drill in an isolated environment.
 
-Las horas se muestran en `Europe/Madrid`. La aplicación está diseñada para una sola empresa; no incluye nóminas, geolocalización ni fichajes offline.
+Times are displayed in `Europe/Madrid`. The application is designed for a single company; it does not include payroll, geolocation, or offline clocking. The application interface is in Spanish; labels quoted below match the interface.
 
-## Desarrollo local
+## Local development
 
-Requiere Node.js **24**, npm y un despliegue propio de desarrollo en Convex.
+Requires Node.js **24**, npm, and your own Convex development deployment.
 
 ```sh
 npm ci
 cp .env.example .env.local
 ```
 
-Copia el archivo de ejemplo solo si no tienes `.env.local`. Configura `CONVEX_DEPLOYMENT` y `VITE_CONVEX_URL` con los valores de tu despliegue. Las variables `VITE_` son públicas en el navegador: nunca deben contener secretos.
+Copy the example file only if you do not already have `.env.local`. Set `CONVEX_DEPLOYMENT` and `VITE_CONVEX_URL` to your deployment's values. Variables prefixed with `VITE_` are public in the browser and must never contain secrets.
 
-Prepara la autenticación y sincroniza el backend:
+Set up authentication and synchronize the backend:
 
 ```sh
 npm run setup:dev-auth
 npm run dev:backend
 ```
 
-Estos comandos modifican el despliegue seleccionado. Usa un entorno aislado para desarrollar: un backend etiquetado como desarrollo también puede contener datos reales. `setup:dev-auth` conserva las claves existentes, genera ambas si no existen y configura `SITE_URL`; exige un destino de desarrollo y rechaza una clave de despliegue en el entorno. `ORA_SITE_URL` permite indicar otro origen para la interfaz.
+These commands modify the selected deployment. Use an isolated environment for development: a backend labeled as development may still contain real data. `setup:dev-auth` preserves existing keys, generates both if neither exists, and sets `SITE_URL`; it requires a development target and rejects a deployment key in the environment. Set `ORA_SITE_URL` to use a different frontend origin.
 
-En otra terminal, inicia la interfaz:
+Start the frontend in another terminal:
 
 ```sh
 npm run dev
 ```
 
-Abre `http://127.0.0.1:5173`.
+Open `http://127.0.0.1:5173`.
 
-## Comprobaciones
+## Checks
 
 ```sh
 npm run typecheck  # TypeScript
-npm test           # Pruebas automatizadas
-npm run build      # Compilación de producción
-npm run check      # Tipos, pruebas y compilación
+npm test           # Automated tests
+npm run build      # Production build
+npm run check      # Types, tests, and build
 ```
 
-La compilación requiere `VITE_CONVEX_URL`. Las pruebas usan `convex-test` y no necesitan acceder al servicio real. CI compila con una URL ficticia. Para validar una instalación, comprueba también los flujos contra su backend y en los navegadores y dispositivos que se utilizarán.
+Building requires `VITE_CONVEX_URL`. Tests use `convex-test` and do not require access to the live service. CI builds with a placeholder URL. To validate an installation, also check its flows against its backend and on the browsers and devices that will be used.
 
-## Primera configuración
+## Initial setup
 
-La función interna `accounts:bootstrap` crea la primera cuenta administradora, la empresa y dos tiendas iniciales. Requiere acceso técnico al despliegue, nombre, usuario y contraseña de al menos 14 caracteres. Solo funciona si no hay empleados; no existe registro público. Conserva las credenciales en un gestor de contraseñas.
+The internal `accounts:bootstrap` function creates the first administrator account, the company, and two initial stores. It requires technical access to the deployment, a name, a username, and a password of at least 14 characters. It only works when there are no employees; public registration is disabled. Store credentials in a password manager.
 
-Desde administración:
+From the administration interface:
 
-1. Completa los datos de la empresa y los nombres de las dos tiendas.
-2. Crea las cuentas individuales y sus periodos laborales, con jornada pactada y vigencia.
-3. Comprueba el acceso de cada persona desde su móvil. Puede añadir la web a la pantalla de inicio.
-4. Configura un horario semanal solo para quienes deban tener fichajes automáticos.
+1. Fill in the company details and the names of both stores.
+2. Create individual accounts and employment periods, including agreed hours and effective dates.
+3. Check each person's access from their phone. They can add the website to their home screen.
+4. Configure a weekly schedule only for employees who should have automatic time entries.
 
-Cerrar un periodo laboral conserva el acceso al historial. Desactivar una cuenta revoca también sus sesiones abiertas, sin borrar sus registros.
+Ending an employment period preserves access to history. Disabling an account also revokes its open authentication sessions without deleting its records.
 
-## Uso
+## Usage
 
-Para fichar, pulsa **Entrar a trabajar** y elige tienda. **Salir del trabajo** cierra el tramo; **Cambiar de tienda** cierra y abre en el mismo instante. Registra por separado los tramos de una jornada partida: no se descuentan pausas automáticamente.
+To clock in, select **Entrar a trabajar** and choose a store. **Salir del trabajo** closes the work interval; **Cambiar de tienda** closes one interval and opens another at the same instant. Record each part of a split shift separately: breaks are not deducted automatically.
 
-Un fichaje solo queda confirmado cuando responde el servidor. Ante pérdida de conexión, anota la hora real y comunica la incidencia para corregirla con motivo. No hay cola de fichajes offline.
+A time entry is only confirmed once the server responds. If the connection fails, note the actual time and report the incident so it can be corrected with a reason. There is no offline clocking queue.
 
-Los horarios semanales se habilitan en **Empleados → ficha de la persona → Fichaje automático**. Admiten hasta seis tramos diarios, salidas al día siguiente y fechas excluidas. Son independientes de las horas pactadas y no rellenan el pasado. El backend procesa los eventos cada minuto con la hora programada; una interrupción puede retrasar su aparición. Editar o desactivar un horario no recalcula registros anteriores y respeta las intervenciones manuales. Los horarios restaurados permanecen en pausa hasta guardarlos expresamente.
+Enable weekly schedules under **Empleados → employee details → Fichaje automático**. They support up to six intervals per day, departures on the following day, and excluded dates. They are independent of agreed hours and do not backfill the past. The backend processes events every minute using their scheduled times; an interruption may delay their appearance. Editing or disabling a schedule does not recalculate previous records and respects manual interventions. Restored schedules remain paused until explicitly saved.
 
-Administración revisa incidencias, corrige registros y emite informes de meses terminados. Cada informe conserva su versión; una corrección posterior requiere emitir otra. **Registros → Descargar CSV** exporta los tramos actuales según los filtros, incluidos abiertos y anulados; no sustituye al informe mensual emitido. La entrega de un informe se registra con su fecha y medio reales.
+Administrators review incidents, correct records, and issue reports for completed months. Each report retains its version; a later correction requires a new one. **Registros → Descargar CSV** exports current intervals matching the filters, including open and voided intervals; it does not replace the issued monthly report. Report delivery records the actual date and delivery method.
 
-## Copias y recuperación
+## Backups and recovery
 
-Descarga periódicamente una copia cifrada desde **Informes** y guárdala fuera de la aplicación, con la contraseña por separado. Incluye datos laborales e informes, pero no contraseñas ni sesiones. El indicador de última copia acredita su generación, no que el archivo siga disponible.
+Periodically download an encrypted backup from **Informes** and store it outside the application, keeping its password separately. It includes employment data and reports, but not passwords or authentication sessions. The latest backup indicator confirms generation, not that the file is still available.
 
-La recuperación requiere un destino vacío y aislado y nuevas credenciales de acceso. Consulta el [procedimiento de recuperación](docs/RECUPERACION.md), incluido el ensayo local que comprueba datos y relaciones. Una copia semanal deja un intervalo de posible pérdida de hasta siete días.
+Recovery requires an empty, isolated target and new access credentials. See the [recovery procedure](docs/RECOVERY.md), including the local drill that checks data and relationships. Weekly backups leave a potential data loss window of up to seven days.
 
-## Despliegue en Vercel
+## Vercel deployment
 
-`vercel.json` configura la SPA, las cabeceras de seguridad y el despliegue desde `main`. El script [deploy-vercel.mjs](scripts/deploy-vercel.mjs) publica tanto el backend como la interfaz y comprueba la rama, el entorno de Vercel y el destino de Convex.
+`vercel.json` configures the SPA, security headers, and deployment from `main`. The [deploy-vercel.mjs](scripts/deploy-vercel.mjs) script deploys both the backend and frontend and checks the branch, Vercel environment, and Convex target.
 
-Para una instalación propia, adapta el destino permitido en ese script y configura `CONVEX_DEPLOY_KEY` como secreto exclusivo del entorno **Production** de Vercel. Prepara la autenticación del backend y su `SITE_URL` para el origen público de la interfaz. Nunca compartas la clave con previews ni la guardes en Git.
+For your own installation, adjust the allowed target in that script and configure `CONVEX_DEPLOY_KEY` as a secret available only in Vercel's **Production** environment. Set up backend authentication and its `SITE_URL` for the public frontend origin. Never share the key with previews or store it in Git.
 
-Con la integración de Git activada, un push a `main` inicia la publicación. Convex inyecta `VITE_CONVEX_URL` y ejecuta `npm run check` antes de publicar las funciones; después Vercel publica `dist`. Las demás ramas tienen el despliegue automático deshabilitado. Cambiar únicamente la URL de la interfaz no migra los datos ni la autenticación.
+With Git integration enabled, pushing to `main` starts deployment. Convex injects `VITE_CONVEX_URL` and runs `npm run check` before deploying functions; Vercel then publishes `dist`. Automatic deployment is disabled for other branches. Changing only the frontend URL does not migrate data or authentication.
 
-Un rollback de Vercel restaura la interfaz, no el backend ni los datos. Conserva la compatibilidad entre ambos al desplegar cambios. Verifica los límites y condiciones de los planes elegidos antes de operar una instalación.
+A Vercel rollback restores the frontend, not the backend or data. Keep both compatible when deploying changes. Check the limits and terms of your chosen plans before operating an installation.
 
-## Estructura
+## Project structure
 
-| Directorio | Contenido                                                               |
-| ---------- | ----------------------------------------------------------------------- |
-| `src/`     | Interfaz de trabajadores y administración, componentes y estilos.       |
-| `convex/`  | Modelo de datos, autenticación, permisos y funciones del backend.       |
-| `shared/`  | Cálculo de horas, CSV, cifrado, pruebas y herramientas de recuperación. |
-| `scripts/` | Preparación de autenticación y publicación en Vercel.                   |
-| `docs/`    | Documentación de recuperación.                                          |
+| Directory  | Contents                                                          |
+| ---------- | ----------------------------------------------------------------- |
+| `src/`     | Employee and administrator interfaces, components, and styles.    |
+| `convex/`  | Data model, authentication, authorization, and backend functions. |
+| `shared/`  | Time calculations, CSV, encryption, tests, and recovery tools.    |
+| `scripts/` | Authentication setup and Vercel deployment.                       |
+| `docs/`    | Recovery documentation.                                           |
 
-Las instrucciones para trabajar sobre el código están en [AGENTS.md](AGENTS.md). Mantén credenciales, exportaciones y datos laborales fuera del repositorio y de los logs; `.gitignore` y `.vercelignore` excluyen los archivos locales y generados.
+See [AGENTS.md](AGENTS.md) for instructions on working with the code. Keep credentials, exports, and employment data out of the repository and logs; `.gitignore` and `.vercelignore` exclude local and generated files.
