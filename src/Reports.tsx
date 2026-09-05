@@ -156,8 +156,8 @@ export function Reports() {
         </div>
         <div>
           <p className="eyebrow">Una vez a la semana</p>
-          <h2>Tu copia, fuera de Ora.</h2>
-          <p>Descarga los registros y guárdalos en un lugar seguro de la empresa.</p>
+          <h2>Copia de seguridad completa</h2>
+          <p>Descarga una copia cifrada para recuperar Ora y guárdala fuera de la aplicación.</p>
           <span className={`backup-date ${backupDue ? 'backup-due' : ''}`}>
             {lastBackup
               ? `Última copia generada: ${formatDate(lastBackup)}`
