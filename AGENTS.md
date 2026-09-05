@@ -59,6 +59,7 @@ rtk proxy npm run check           # Tipos, pruebas y compilación
 
 - Identifica y anuncia el despliegue efectivo antes de ejecutar `dev`, `deploy`, mutaciones, importaciones o cambios de variables. Contrasta `.env.local`, variables del proceso y opciones de la CLI.
 - La configuración inicial conecta `https://ora-one-rho.vercel.app` con **`dev:accurate-bass-175`**, Irlanda. Verifica que siga siendo así; el alias de producción de Vercel no determina el entorno de Convex.
+- Los pushes a `main` de `supertowrs/ora` despliegan automáticamente frontend y backend desde Vercel, después de ejecutar `npm run check`. `scripts/deploy-vercel.mjs` verifica rama, entorno y clave; las demás ramas no se despliegan. Un push a `main` es también una operación sobre el backend actual. No añadas un segundo despliegue paralelo en GitHub Actions ni uses la clave de este backend en previews.
 - El usuario ya ha empezado a preparar las cuentas definitivas. **Un despliegue etiquetado como desarrollo puede contener datos reales.** No lo uses como base desechable, no insertes fixtures ni ejecutes restauraciones sobre él sin que la tarea lo autorice.
 - `prueba.ana` y `prueba.api` fueron eliminados después de las pruebas iniciales. No los recrees automáticamente ni reutilices credenciales antiguas.
 - Las restauraciones se hacen en un destino vacío y aislado. No sobrescribas el registro operativo ni copies datos reales a previews para probar cambios.

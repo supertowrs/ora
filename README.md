@@ -4,7 +4,7 @@ Registro de jornada para una empresa con dos tiendas. Web móvil para fichar y p
 
 React + TypeScript + Vite, Convex con datos en Irlanda y alojamiento estático en Vercel. No necesita servidores propios, correo, SMS ni servicios de documentos.
 
-Web de pruebas: **https://ora-one-rho.vercel.app**. Usa el alias público de Vercel y el despliegue **de desarrollo** de Convex `accurate-bass-175`, con empresa y trabajadores ficticios. Las credenciales de administración están en `.local/acceso-inicial.txt`; no forman parte del repositorio. Estado y pruebas: [VERIFICACION.md](VERIFICACION.md).
+Web: **https://ora-one-rho.vercel.app**. Usa el alias público de Vercel y el despliegue **de desarrollo** de Convex `accurate-bass-175`. Los trabajadores ficticios se eliminaron después de las pruebas iniciales; este backend puede contener ya cuentas y datos reales. Las credenciales de administración están en `.local/acceso-inicial.txt`; no forman parte del repositorio. Estado y pruebas iniciales: [VERIFICACION.md](VERIFICACION.md).
 
 ## Desarrollo
 
@@ -67,12 +67,19 @@ Una copia semanal deja un intervalo de posible pérdida de hasta siete días. Co
 
 ## Alojamiento
 
-`vercel.json` configura compilación estática, rutas de la SPA y cabeceras de seguridad. Vercel necesita `VITE_CONVEX_URL` en el entorno correspondiente; la compilación falla si falta. La web publicada actualmente es de pruebas aunque Vercel la sirva mediante su alias de producción. El uso laboral requiere preparar un despliegue Convex separado con los datos reales.
+El proyecto Vercel `ora` está conectado al repositorio privado `supertowrs/ora`. Cada push a **`main`** inicia automáticamente el despliegue mediante `scripts/deploy-vercel.mjs`:
 
-```sh
-npm run check
-vercel deploy
-```
+1. Verifica que la ejecución corresponde a Vercel Production, a `main` y a la clave del backend `dev:accurate-bass-175`.
+2. Convex inyecta `VITE_CONVEX_URL` y ejecuta `npm run check`: tipos, pruebas y compilación estática.
+3. Si esas comprobaciones pasan, publica las funciones e índices de Convex. Después Vercel publica `dist` en la URL habitual.
+
+`CONVEX_DEPLOY_KEY` es un secreto de Vercel disponible solo en **Production**. No se guarda en Git ni se necesita en GitHub Actions. Las demás ramas no generan despliegues automáticos ni modifican este backend. GitHub Actions ejecuta además su comprobación independiente; la publicación usa las pruebas ejecutadas dentro de Vercel como requisito.
+
+La automatización conserva el backend y sus datos actuales. Sigue etiquetado como desarrollo en Convex; migrar a otro despliegue requiere preparar datos y autenticación, cambiar el secreto y actualizar la comprobación de destino del script. No basta con cambiar la URL de la interfaz.
+
+`vercel.json` también configura rutas de la SPA y cabeceras de seguridad. Para desarrollar o compilar localmente, utiliza los comandos de la sección Desarrollo. No ejecutes el script de despliegue para una comprobación local. La integración sigue el [procedimiento de Convex para Vercel](https://docs.convex.dev/production/hosting/vercel).
+
+Un rollback de Vercel restaura la interfaz, no las funciones ni los datos de Convex. Mantén compatibles los cambios entre frontend y backend; para revertir código de ambos, revierte el commit y publica el resultado en `main`.
 
 No activar planes de pago, cobro por uso, dominios ni complementos. Revisar el consumo en ambos proveedores. El objetivo de cero euros depende de sus límites y condiciones actuales; la decisión y su salvedad de Vercel Hobby están recogidas en `PLAN_IMPLEMENTACION.md`.
 
