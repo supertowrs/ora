@@ -61,17 +61,21 @@ The internal `accounts:bootstrap` function creates the first administrator accou
 From the administration interface:
 
 1. Fill in the company details and the names of both stores.
-2. Create individual accounts and employment periods, including agreed hours and effective dates.
+2. Create individual accounts with a password you choose, then add employment periods, including agreed hours and effective dates. Account creation uses the administrator's current session without asking for the administrator's password again. Worker passwords require at least 8 characters; administrator passwords require at least 14. Both allow up to 200 characters, and password generation is optional.
 3. Check each person's access from their phone. They can add the website to their home screen.
 4. Configure a weekly schedule only for employees who should have automatic time entries.
 
 Ending an employment period preserves access to history. Disabling an account also revokes its open authentication sessions without deleting its records.
+
+Use **Empleados → employee details → Cambiar contraseña** to choose a replacement password. This operation still asks for the administrator's password and closes the employee's previous sessions. Existing passwords remain valid until changed. Passwords are only displayed during creation or replacement and are not available from the employee record later.
 
 ## Usage
 
 To clock in, select **Entrar a trabajar** and choose a store. **Salir del trabajo** closes the work interval; **Cambiar de tienda** closes one interval and opens another at the same instant. Record each part of a split shift separately: breaks are not deducted automatically.
 
 A time entry is only confirmed once the server responds. If the connection fails, note the actual time and report the incident so it can be corrected with a reason. There is no offline clocking queue.
+
+Workers can filter **Mis horas** using **Desde** and **Hasta**, including both dates and spanning multiple months. The default is the current month; **Este mes** restores that selection. The total includes only closed hours within the selected dates in `Europe/Madrid`. Corrections affecting either the previous or current dates remain visible, and issued monthly summaries retain their original frozen content.
 
 Enable weekly schedules under **Empleados → employee details → Fichaje automático**. They support up to six intervals per day, departures on the following day, and excluded dates. They are independent of agreed hours and do not backfill the past. The backend processes events every minute using their scheduled times; an interruption may delay their appearance. Editing or disabling a schedule does not recalculate previous records and respects manual interventions. Restored schedules remain paused until explicitly saved.
 

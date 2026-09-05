@@ -2146,16 +2146,34 @@ tbody tr:hover {
 .worker-history h1 {
   font-size: 32px;
 }
-.worker-history > .field {
-  margin: 20px 0;
-  max-width: 240px;
+.history-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0 8px;
 }
-.worker-history > .field > span {
+.history-filters .field {
+  min-width: 0;
+  margin: 0;
+}
+.history-filters .field > span {
   font-size: 15px;
 }
-.worker-history > .field input {
-  font-size: 18px;
+.history-filters .field input {
+  min-width: 0;
+  width: 100%;
+  font-size: 16px;
   min-height: 52px;
+}
+.history-filters > button {
+  justify-self: start;
+  grid-column: 1 / -1;
+  min-height: 44px;
+}
+.history-filter-hint {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--muted);
 }
 .history-total {
   padding: 24px 0 25px;
@@ -3043,6 +3061,9 @@ tbody tr:hover {
   }
 }
 @media (max-width: 400px) {
+  .history-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .worker-header {
     padding: 24px 21px 17px;
   }

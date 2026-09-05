@@ -18,8 +18,16 @@ import {
 } from 'lucide-react';
 import { api } from '../convex/_generated/api';
 import type { Id } from '../convex/_generated/dataModel';
-import { formatDate, formatDuration, formatTime, localDate, localMonth } from '../shared/time';
-import { monthlyReport } from '../shared/reports';
+import {
+  dateRangeBounds,
+  formatDate,
+  formatDuration,
+  formatTime,
+  localDate,
+  localMonth,
+  monthBounds,
+} from '../shared/time';
+import { summarizePeriod } from '../shared/reports';
 import type { Employee } from './types';
 import {
   Badge,
@@ -411,134 +419,180 @@ function IncidentForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   );
 }
 
+function currentMonthDates() {
+  const bounds = monthBounds(localMonth(Date.now()));
+  return { startDate: localDate(bounds.startAt), endDate: localDate(bounds.endAt - 1) };
+}
+
 function WorkerHistory({ stores }: { stores: { _id: Id<'stores'>; name: string }[] }) {
-  const [month, setMonth] = useState(localMonth(Date.now()));
-  const history = useQuery(api.app.history, { month });
+  const [dates, setDates] = useState(currentMonthDates);
+  const range = useMemo(() => {
+    try {
+      return { bounds: dateRangeBounds(dates.startDate, dates.endDate), error: '' };
+    } catch (error) {
+      return { bounds: null, error: errorMessage(error) };
+    }
+  }, [dates]);
+  const history = useQuery(api.app.history, range.bounds ? dates : 'skip');
   const [reportId, setReportId] = useState<Id<'reports'> | null>(null);
-  if (!history) return <Loading text="Cargando tus horas…" />;
-  const summary = monthlyReport(history.sessions, month);
-  const report = history.reports.find((report) => report._id === reportId);
+  const summary =
+    history && !history.error && range.bounds
+      ? summarizePeriod(history.sessions, range.bounds)
+      : null;
+  const report = history?.reports.find((report) => report._id === reportId);
+  function changeDates(next: typeof dates) {
+    setDates(next);
+    setReportId(null);
+  }
   return (
     <section className="worker-history">
       <h1>Mis horas</h1>
-      <Field label="Mes">
-        <input
-          type="month"
-          value={month}
-          onChange={(event) => event.target.value && setMonth(event.target.value)}
-        />
-      </Field>
-      <div className="history-total">
-        <span>{summary.incomplete ? 'Horas de los tramos cerrados' : 'Horas registradas'}</span>
-        <strong>
-          {formatDuration(summary.totalSeconds)} <small>h</small>
-        </strong>
-        {summary.incomplete && <Badge tone="amber">Hay un tramo sin cerrar</Badge>}
+      <div className="history-filters">
+        <Field label="Desde">
+          <input
+            type="date"
+            value={dates.startDate}
+            onChange={(event) => changeDates({ ...dates, startDate: event.target.value })}
+          />
+        </Field>
+        <Field label="Hasta">
+          <input
+            type="date"
+            value={dates.endDate}
+            onChange={(event) => changeDates({ ...dates, endDate: event.target.value })}
+          />
+        </Field>
+        <button className="text-button" onClick={() => changeDates(currentMonthDates())}>
+          Este mes
+        </button>
       </div>
-      {!summary.days.length ? (
-        <Empty title="Aún no hay horas este mes" icon={<Clock3 size={28} />}>
-          Tus entradas y salidas aparecerán aquí.
-        </Empty>
-      ) : (
-        [...summary.days].reverse().map((day) => (
-          <article className="history-day" key={day.date}>
-            <header>
-              <h2>{formatDate(new Date(`${day.date}T12:00:00Z`).getTime())}</h2>
-              <strong>
-                {day.incomplete ? 'Sin cerrar' : `${formatDuration(day.totalSeconds)} h`}
-              </strong>
-            </header>
-            {day.segments.map((session) => (
-              <div className="history-shift" key={`${session.sessionId}-${session.startAt}`}>
-                <span className="timeline-dot" />
-                <div>
+      <p className="history-filter-hint">El periodo incluye ambos días.</p>
+      {range.error && <Notice>{range.error}</Notice>}
+      {range.bounds && !history && <Loading text="Cargando tus horas…" />}
+      {history?.error && <Notice>{history.error}</Notice>}
+      {history && summary && (
+        <>
+          <div className="history-total">
+            <span>{summary.incomplete ? 'Horas de los tramos cerrados' : 'Horas registradas'}</span>
+            <strong>
+              {formatDuration(summary.totalSeconds)} <small>h</small>
+            </strong>
+            {summary.incomplete && <Badge tone="amber">Hay un tramo sin cerrar</Badge>}
+          </div>
+          {!summary.days.length ? (
+            <Empty title="No hay horas en este periodo" icon={<Clock3 size={28} />}>
+              Prueba con otras fechas para consultar tus entradas y salidas.
+            </Empty>
+          ) : (
+            [...summary.days].reverse().map((day) => (
+              <article className="history-day" key={day.date}>
+                <header>
+                  <h2>{formatDate(new Date(`${day.date}T12:00:00Z`).getTime())}</h2>
                   <strong>
-                    {formatTime(session.startAt)} <span>→</span>{' '}
-                    {session.endAt ? formatTime(session.endAt) : 'En curso'}
+                    {day.incomplete ? 'Sin cerrar' : `${formatDuration(day.totalSeconds)} h`}
                   </strong>
-                  <p>
-                    {stores.find((store) => store._id === session.storeId)?.name ?? 'Tienda'}
-                    {history.corrections.some(
-                      (correction) => correction.sessionId === session.sessionId,
-                    ) && <span className="corrected-label"> · Corregido</span>}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </article>
-        ))
-      )}
-      {history.corrections.length > 0 && (
-        <section className="history-corrections">
-          <h2>Correcciones</h2>
-          {history.corrections.map((correction) => (
-            <article key={correction._id}>
-              <strong>{formatDate(correction.after.startAt)}</strong>
-              <p>{correction.reason}</p>
-              <small>
-                {correction.actorName} · {formatDate(correction.createdAt)}
-              </small>
-              <details className="worker-correction-detail">
-                <summary>Ver el cambio</summary>
-                {correction.before && (
-                  <p>
-                    <strong>Antes:</strong> {formatDate(correction.before.startAt)} ·{' '}
-                    {formatTime(correction.before.startAt)} →{' '}
-                    {correction.before.endAt
-                      ? `${formatDate(correction.before.endAt)} ${formatTime(correction.before.endAt)}`
-                      : 'Sin salida'}
-                    {correction.before.voided ? ' · Anulado' : ''}
-                  </p>
-                )}
-                <p>
-                  <strong>Ahora:</strong> {formatDate(correction.after.startAt)} ·{' '}
-                  {formatTime(correction.after.startAt)} →{' '}
-                  {correction.after.endAt
-                    ? `${formatDate(correction.after.endAt)} ${formatTime(correction.after.endAt)}`
-                    : 'Sin salida'}
-                  {correction.after.voided ? ' · Anulado' : ''}
-                </p>
-              </details>
-            </article>
-          ))}
-        </section>
-      )}
-      {history.incidents.length > 0 && (
-        <section className="history-corrections">
-          <h2>Tus avisos</h2>
-          {history.incidents.map((incident) => (
-            <article key={incident._id}>
-              <Badge tone={incident.status === 'resolved' ? 'green' : 'amber'}>
-                {incident.status === 'resolved' ? 'Revisado' : 'Pendiente'}
-              </Badge>
-              <strong>
-                {incidentKinds[incident.kind]} · {incident.date.split('-').reverse().join('/')}
-              </strong>
-              {incident.note && <p>{incident.note}</p>}
-              {incident.resolution && <p>{incident.resolution}</p>}
-            </article>
-          ))}
-        </section>
-      )}
-      {history.reports.length > 0 && (
-        <section className="history-corrections">
-          <h2>Resúmenes del mes</h2>
-          {history.reports.map((report) => (
-            <button
-              key={report._id}
-              className="report-link"
-              onClick={() => setReportId(report._id)}
-            >
-              <span>Resumen mensual · Versión {report.version}</span>
-              <ChevronRight size={20} />
-            </button>
-          ))}
-        </section>
-      )}
-      {report && (
-        <Modal title="Tu resumen mensual" wide onClose={() => setReportId(null)}>
-          <ReportDocument report={report} />
-        </Modal>
+                </header>
+                {day.segments.map((session) => (
+                  <div className="history-shift" key={`${session.sessionId}-${session.startAt}`}>
+                    <span className="timeline-dot" />
+                    <div>
+                      <strong>
+                        {formatTime(session.startAt)} <span>→</span>{' '}
+                        {session.endAt ? formatTime(session.endAt) : 'En curso'}
+                      </strong>
+                      <p>
+                        {stores.find((store) => store._id === session.storeId)?.name ?? 'Tienda'}
+                        {history.corrections.some(
+                          (correction) => correction.sessionId === session.sessionId,
+                        ) && <span className="corrected-label"> · Corregido</span>}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </article>
+            ))
+          )}
+          {history.corrections.length > 0 && (
+            <section className="history-corrections">
+              <h2>Correcciones</h2>
+              {history.corrections.map((correction) => (
+                <article key={correction._id}>
+                  <strong>{formatDate(correction.after.startAt)}</strong>
+                  <p>{correction.reason}</p>
+                  <small>
+                    {correction.actorName} · {formatDate(correction.createdAt)}
+                  </small>
+                  <details className="worker-correction-detail">
+                    <summary>Ver el cambio</summary>
+                    {correction.before && (
+                      <p>
+                        <strong>Antes:</strong> {formatDate(correction.before.startAt)} ·{' '}
+                        {formatTime(correction.before.startAt)} →{' '}
+                        {correction.before.endAt
+                          ? `${formatDate(correction.before.endAt)} ${formatTime(correction.before.endAt)}`
+                          : 'Sin salida'}
+                        {correction.before.voided ? ' · Anulado' : ''}
+                      </p>
+                    )}
+                    <p>
+                      <strong>Ahora:</strong> {formatDate(correction.after.startAt)} ·{' '}
+                      {formatTime(correction.after.startAt)} →{' '}
+                      {correction.after.endAt
+                        ? `${formatDate(correction.after.endAt)} ${formatTime(correction.after.endAt)}`
+                        : 'Sin salida'}
+                      {correction.after.voided ? ' · Anulado' : ''}
+                    </p>
+                  </details>
+                </article>
+              ))}
+            </section>
+          )}
+          {history.incidents.length > 0 && (
+            <section className="history-corrections">
+              <h2>Tus avisos</h2>
+              {history.incidents.map((incident) => (
+                <article key={incident._id}>
+                  <Badge tone={incident.status === 'resolved' ? 'green' : 'amber'}>
+                    {incident.status === 'resolved' ? 'Revisado' : 'Pendiente'}
+                  </Badge>
+                  <strong>
+                    {incidentKinds[incident.kind]} · {incident.date.split('-').reverse().join('/')}
+                  </strong>
+                  {incident.note && <p>{incident.note}</p>}
+                  {incident.resolution && <p>{incident.resolution}</p>}
+                </article>
+              ))}
+            </section>
+          )}
+          {history.reports.length > 0 && (
+            <section className="history-corrections">
+              <h2>Resúmenes mensuales</h2>
+              <p className="muted">Cada resumen conserva el mes completo y la versión emitida.</p>
+              {history.reports.map((report) => (
+                <button
+                  key={report._id}
+                  className="report-link"
+                  onClick={() => setReportId(report._id)}
+                >
+                  <span>
+                    {new Intl.DateTimeFormat('es-ES', {
+                      timeZone: 'Europe/Madrid',
+                      month: 'long',
+                      year: 'numeric',
+                    }).format(new Date(`${report.month}-01T12:00:00Z`))}
+                    {' · '}Versión {report.version}
+                  </span>
+                  <ChevronRight size={20} />
+                </button>
+              ))}
+            </section>
+          )}
+          {report && (
+            <Modal title="Tu resumen mensual" wide onClose={() => setReportId(null)}>
+              <ReportDocument report={report} />
+            </Modal>
+          )}
+        </>
       )}
     </section>
   );

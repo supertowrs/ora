@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  dateRangeBounds,
   dayBounds,
   formatDuration,
   localDate,
@@ -8,7 +9,7 @@ import {
   splitSessionByDay,
   toDateTimeLocal,
 } from './time';
-import { summarizeMonth } from './reports';
+import { summarizeMonth, summarizePeriod } from './reports';
 
 const session = (start: string, end: string | null) => ({
   storeId: 'centro',
@@ -48,6 +49,62 @@ describe('Madrid calendar and elapsed time', () => {
     const october = monthBounds('2026-10');
     expect((march.endAt - march.startAt) / 3_600_000).toBe(31 * 24 - 1);
     expect((october.endAt - october.startAt) / 3_600_000).toBe(31 * 24 + 1);
+  });
+
+  it('includes both selected dates and rejects incomplete, inverted or impossible date ranges', () => {
+    expect(dateRangeBounds('2026-08-31', '2026-09-01')).toEqual({
+      startAt: Date.parse('2026-08-30T22:00:00Z'),
+      endAt: Date.parse('2026-09-01T22:00:00Z'),
+    });
+    expect(dateRangeBounds('2026-09-01', '2026-09-01')).toEqual(dayBounds('2026-09-01'));
+    for (const dates of [
+      ['', '2026-09-01'],
+      ['2026-09-01', ''],
+      ['2026-09-02', '2026-09-01'],
+      ['2026-02-29', '2026-03-01'],
+      ['2026-01-01', '2026-13-01'],
+    ])
+      expect(() => dateRangeBounds(dates[0], dates[1])).toThrow();
+  });
+
+  it.each([
+    ['2026-03-29', '2026-03-28T22:00Z', '2026-03-29T23:00Z', 23],
+    ['2026-10-25', '2026-10-24T21:00Z', '2026-10-26T00:00Z', 25],
+  ])('clips the whole %s Madrid day using its real duration', (date, start, end, hours) => {
+    const result = summarizePeriod([session(start, end)], dateRangeBounds(date, date));
+    expect(result.totalSeconds).toBe(hours * 3600);
+    expect(result.days.map((day) => day.date)).toEqual([date]);
+  });
+
+  it('clips overnight sessions to a single day or a range crossing months', () => {
+    const shifts = [
+      session('2026-08-30T21:00Z', '2026-08-30T23:00Z'),
+      session('2026-08-31T21:00Z', '2026-08-31T23:00Z'),
+      session('2026-09-01T21:00Z', '2026-09-01T23:00Z'),
+    ];
+    const both = summarizePeriod(shifts, dateRangeBounds('2026-08-31', '2026-09-01'));
+    expect(both.totalSeconds).toBe(4 * 3600);
+    expect(both.days.map((day) => [day.date, day.totalSeconds])).toEqual([
+      ['2026-08-31', 2 * 3600],
+      ['2026-09-01', 2 * 3600],
+    ]);
+    expect(summarizePeriod(shifts, dateRangeBounds('2026-09-01', '2026-09-01')).totalSeconds).toBe(
+      2 * 3600,
+    );
+    expect(summarizePeriod(shifts, dateRangeBounds('2026-08-01', '2026-08-02'))).toEqual({
+      days: [],
+      totalSeconds: 0,
+      incomplete: false,
+    });
+    expect(
+      summarizePeriod(
+        [session('2026-08-31T21:00Z', null)],
+        dateRangeBounds('2026-09-01', '2026-09-01'),
+      ),
+    ).toMatchObject({
+      totalSeconds: 0,
+      incomplete: true,
+    });
   });
 
   it('counts real elapsed hours through forward and backward clock changes', () => {

@@ -1,4 +1,4 @@
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 import { action, internalMutation, mutation, query } from './_generated/server';
 import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
@@ -8,16 +8,16 @@ import {
   employeePeriods,
   fail,
   isActive,
-  monthCorrections,
-  monthIncidents,
-  monthSessions,
   openSession,
+  periodCorrections,
+  periodIncidents,
+  periodSessions,
   requireUser,
   requireWritable,
   validDate,
   verifyNoOverlap,
 } from './lib';
-import { parseDateTimeLocal } from '../shared/time';
+import { dateRangeBounds, localDate, monthBounds, parseDateTimeLocal } from '../shared/time';
 
 const clockResult = v.object({ sessionId: v.id('sessions'), at: v.number(), kind: clockKind });
 const clockArgs = {
@@ -65,32 +65,69 @@ export const overview = query({
   },
 });
 export const history = query({
-  args: { month: v.string() },
+  args: {
+    month: v.optional(v.string()),
+    startDate: v.optional(v.string()),
+    endDate: v.optional(v.string()),
+  },
   returns: v.object({
     sessions: v.array(schema.doc('sessions')),
     corrections: v.array(schema.doc('corrections')),
     incidents: v.array(schema.doc('incidents')),
     reports: v.array(schema.doc('reports')),
     periods: v.array(schema.doc('periods')),
+    error: v.optional(v.string()),
   }),
-  handler: async (ctx, { month }) => {
+  handler: async (ctx, args) => {
     const employee = await requireUser(ctx);
-    const sessions = await monthSessions(ctx, employee._id, month);
-    const reports = await ctx.db
-      .query('reports')
-      .withIndex('by_employeeId_and_month', (q) =>
-        q.eq('employeeId', employee._id).eq('month', month),
-      )
-      .take(201);
-    if (reports.length > 200)
-      fail('Demasiadas versiones en este mes. Solicita exportación técnica.');
-    return {
-      sessions,
-      corrections: await monthCorrections(ctx, employee._id, month, sessions),
-      incidents: await monthIncidents(ctx, employee._id, month),
-      reports,
-      periods: await employeePeriods(ctx, employee._id),
-    };
+    try {
+      if (args.month !== undefined && (args.startDate !== undefined || args.endDate !== undefined))
+        fail('Selecciona un mes o un intervalo de fechas.');
+      let bounds;
+      try {
+        bounds =
+          args.month !== undefined
+            ? monthBounds(args.month)
+            : dateRangeBounds(args.startDate ?? '', args.endDate ?? '');
+      } catch (error) {
+        fail(error instanceof Error ? error.message : 'Las fechas no son válidas.');
+      }
+      const startDate = localDate(bounds.startAt);
+      const endDate = localDate(bounds.endAt - 1);
+      const sessions = await periodSessions(ctx, employee._id, bounds);
+      const reports = await ctx.db
+        .query('reports')
+        .withIndex('by_employeeId_and_month', (q) =>
+          q
+            .eq('employeeId', employee._id)
+            .gte('month', startDate.slice(0, 7))
+            .lte('month', endDate.slice(0, 7)),
+        )
+        .take(201);
+      if (reports.length > 200)
+        fail(
+          'Demasiadas versiones. Selecciona un periodo más corto o solicita exportación técnica.',
+        );
+      return {
+        sessions,
+        corrections: await periodCorrections(ctx, employee._id, bounds, sessions),
+        incidents: await periodIncidents(ctx, employee._id, startDate, endDate),
+        reports,
+        periods: await employeePeriods(ctx, employee._id),
+      };
+    } catch (error) {
+      // Existing monthly clients keep their error behavior. Date filters can show
+      // bounded-query errors inline so the employee can shorten the range.
+      if (args.month !== undefined || !(error instanceof ConvexError)) throw error;
+      return {
+        sessions: [],
+        corrections: [],
+        incidents: [],
+        reports: [],
+        periods: [],
+        error: String(error.data),
+      };
+    }
   },
 });
 export const operation = query({

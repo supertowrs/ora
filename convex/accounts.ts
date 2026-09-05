@@ -9,14 +9,15 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { role } from './schema';
 import { fail, requireAdmin, requireWritable, text } from './lib';
+import { passwordError } from '../shared/passwords';
 
 const accountArgs = { name: v.string(), username: v.string(), password: v.string(), role };
-function credentials(username: string, password: string) {
+function credentials(username: string, password: string, employeeRole: 'admin' | 'worker') {
   const normalized = username.trim().toLowerCase();
   if (!/^[a-z0-9._-]{3,40}$/.test(normalized))
     fail('Usuario: usa 3–40 letras sin acentos, números, punto o guion.');
-  if (password.length < 14 || password.length > 200)
-    fail('Usa una contraseña de 14 a 200 caracteres.');
+  const error = passwordError(password, employeeRole);
+  if (error) fail(error);
   return normalized;
 }
 export const ensureAvailable = internalQuery({
@@ -27,7 +28,7 @@ export const ensureAvailable = internalQuery({
     if (args.bootstrap) {
       if (await ctx.db.query('employees').withIndex('by_creation_time').first())
         fail('La aplicación ya tiene administradora.');
-    } else await requireAdmin(ctx, true);
+    } else await requireAdmin(ctx);
     if (
       await ctx.db
         .query('employees')
@@ -54,7 +55,7 @@ export const attachEmployee = internalMutation({
     if (args.bootstrap) {
       if (await ctx.db.query('employees').withIndex('by_creation_time').first())
         fail('La aplicación ya se ha inicializado.');
-    } else await requireAdmin(ctx, true);
+    } else await requireAdmin(ctx);
     if (
       await ctx.db
         .query('employees')
@@ -86,7 +87,7 @@ export const createEmployee = action({
   args: accountArgs,
   returns: v.id('employees'),
   handler: async (ctx, args): Promise<Id<'employees'>> => {
-    const username = credentials(args.username, args.password);
+    const username = credentials(args.username, args.password, args.role);
     const name = text(args.name, 'Nombre', 120);
     await ctx.runQuery(internal.accounts.ensureAvailable, { username, bootstrap: false });
     const result = await createAccount(ctx, {
@@ -107,7 +108,7 @@ export const bootstrap = internalAction({
   args: { name: v.string(), username: v.string(), password: v.string() },
   returns: v.id('employees'),
   handler: async (ctx, args): Promise<Id<'employees'>> => {
-    const username = credentials(args.username, args.password);
+    const username = credentials(args.username, args.password, 'admin');
     const name = text(args.name, 'Nombre', 120);
     await ctx.runQuery(internal.accounts.ensureAvailable, { username, bootstrap: true });
     const result = await createAccount(ctx, {
@@ -143,13 +144,13 @@ export const resetPassword = action({
     const employee: Doc<'employees'> = await ctx.runQuery(internal.admin.employeeForCredentials, {
       employeeId: args.employeeId,
     });
-    credentials(employee.username, args.password);
+    credentials(employee.username, args.password, employee.role);
     if (employee.userId) {
-      await invalidateSessions(ctx, { userId: employee.userId });
       await modifyAccountCredentials(ctx, {
         provider: 'password',
         account: { id: employee.username, secret: args.password },
       });
+      await invalidateSessions(ctx, { userId: employee.userId });
     } else {
       const result = await createAccount(ctx, {
         provider: 'password',
@@ -194,7 +195,7 @@ export const recoverAdmin = internalAction({
   args: { username: v.string(), password: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const username = credentials(args.username, args.password);
+    const username = credentials(args.username, args.password, 'admin');
     const employee: { employeeId: Id<'employees'>; name: string } = await ctx.runQuery(
       internal.accounts.recoveryCandidate,
       { username },
