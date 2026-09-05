@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env*
+!.env.example
+.vercel/
+.auth-keys.json
+playwright-report/
+test-results/
+.local/
+.DS_Store
+output/
+.playwright-cli/
+.vercel

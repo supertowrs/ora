@@ -1,0 +1,10 @@
+node_modules
+dist
+convex/_generated
+.vercel
+.local
+output
+.playwright-cli
+package-lock.json
+PLAN_IMPLEMENTACION.md
+API_CONTRACT.md

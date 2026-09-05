@@ -1,0 +1,16 @@
+.env*
+.local
+.local/**
+.playwright-cli
+.playwright-cli/**
+.auth-keys.json
+.git
+*.ora.json
+output
+output/**
+node_modules
+convex/**/*.test.ts
+shared/**/*.test.ts
+AGENTS.md
+PLAN_IMPLEMENTACION.md
+API_CONTRACT.md
