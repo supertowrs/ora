@@ -1,4 +1,10 @@
-import { monthBounds, splitSessionByDay, type DailySegment, type TimeSession } from './time';
+import {
+  monthBounds,
+  splitSessionByDay,
+  type DailySegment,
+  type TimeBounds,
+  type TimeSession,
+} from './time';
 
 export interface ReportDay {
   date: string;
@@ -9,16 +15,21 @@ export interface ReportDay {
   incomplete: boolean;
 }
 
-export interface MonthSummary {
-  month: string;
+export interface PeriodSummary {
   days: ReportDay[];
   /** Sum of closed segments only; incomplete must be checked before issuance. */
   totalSeconds: number;
   incomplete: boolean;
 }
 
-export function summarizeMonth(sessions: readonly TimeSession[], month: string): MonthSummary {
-  const bounds = monthBounds(month);
+export interface MonthSummary extends PeriodSummary {
+  month: string;
+}
+
+export function summarizePeriod(
+  sessions: readonly TimeSession[],
+  bounds: TimeBounds,
+): PeriodSummary {
   const days = new Map<string, ReportDay>();
   let milliseconds = 0;
   for (const session of sessions) {
@@ -47,11 +58,14 @@ export function summarizeMonth(sessions: readonly TimeSession[], month: string):
     day.seconds = day.totalSeconds;
   }
   return {
-    month,
     days: orderedDays,
     totalSeconds: milliseconds / 1000,
     incomplete: orderedDays.some((day) => day.incomplete),
   };
+}
+
+export function summarizeMonth(sessions: readonly TimeSession[], month: string): MonthSummary {
+  return { month, ...summarizePeriod(sessions, monthBounds(month)) };
 }
 
 export const monthlyReport = summarizeMonth;

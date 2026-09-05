@@ -1,17 +1,9 @@
 import { useState } from 'react';
 import { useAction, useMutation, useQuery } from 'convex/react';
-import {
-  CalendarDays,
-  ChevronRight,
-  Copy,
-  KeyRound,
-  Plus,
-  Search,
-  ShieldCheck,
-  Users,
-} from 'lucide-react';
+import { CalendarDays, ChevronRight, Copy, KeyRound, Plus, Search, Users } from 'lucide-react';
 import { api } from '../convex/_generated/api';
 import { localDate } from '../shared/time';
+import { passwordError, passwordMinLength } from '../shared/passwords';
 import type { Employee, Period } from './types';
 import { ScheduleForm } from './components/ScheduleForm';
 import {
@@ -31,6 +23,91 @@ function generatedPassword() {
   crypto.getRandomValues(values);
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
   return Array.from(values, (value) => alphabet[value % alphabet.length]).join('');
+}
+function PasswordField({
+  label,
+  role,
+  value,
+  onChange,
+}: {
+  label: string;
+  role: Employee['role'];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <>
+      <Field label={label} hint={`Entre ${passwordMinLength(role)} y 200 caracteres.`}>
+        <input
+          name="newPassword"
+          type={visible ? 'text' : 'password'}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          minLength={passwordMinLength(role)}
+          maxLength={200}
+          autoComplete="new-password"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          required
+        />
+      </Field>
+      <div className="inline-actions">
+        <button
+          type="button"
+          className="button secondary"
+          aria-pressed={visible}
+          onClick={() => setVisible(!visible)}
+        >
+          {visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+        </button>
+        <button
+          type="button"
+          className="button secondary"
+          onClick={() => {
+            onChange(generatedPassword());
+            setVisible(true);
+          }}
+        >
+          Generar contraseña
+        </button>
+      </div>
+    </>
+  );
+}
+function AccessCredentials({ username, password }: { username: string; password: string }) {
+  const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
+  return (
+    <>
+      <div className="credentials">
+        <span>Usuario</span>
+        <strong>{username}</strong>
+        <span>Contraseña</span>
+        <code>{password}</code>
+      </div>
+      <button
+        className="button secondary"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(`Usuario: ${username}\nContraseña: ${password}`);
+            setCopied(true);
+            setCopyError(false);
+          } catch {
+            setCopyError(true);
+          }
+        }}
+      >
+        <Copy size={18} />
+        {copied ? 'Copiado' : 'Copiar acceso'}
+      </button>
+      {copyError && <Notice>No se ha podido copiar. Copia los datos manualmente.</Notice>}
+      <p className="help-text">
+        Esta contraseña no volverá a mostrarse. Si se pierde, podrás cambiarla.
+      </p>
+    </>
+  );
 }
 function periodLabel(period: Period) {
   return `${period.startDate.split('-').reverse().join('/')} → ${period.endDate ? period.endDate.split('-').reverse().join('/') : 'Sin fecha de fin'}`;
@@ -164,10 +241,13 @@ export function Employees({ currentEmployee }: { currentEmployee: Employee }) {
 
 function CreateEmployee({ onClose }: { onClose: () => void }) {
   const create = useAction(api.admin.createEmployee);
-  const reauthenticate = useAction(api.admin.reauthenticate);
-  const [password] = useState(generatedPassword);
-  const [created, setCreated] = useState<{ name: string; username: string } | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState<Employee['role']>('worker');
+  const [created, setCreated] = useState<{
+    name: string;
+    username: string;
+    password: string;
+  } | null>(null);
   return (
     <Modal title={created ? 'Acceso preparado' : 'Añadir empleado'} onClose={onClose}>
       {created ? (
@@ -177,27 +257,7 @@ function CreateEmployee({ onClose }: { onClose: () => void }) {
             Guarda estos datos y entrégalos personalmente. Después, añade su periodo de trabajo
             desde su ficha.
           </p>
-          <div className="credentials">
-            <span>Usuario</span>
-            <strong>{created.username}</strong>
-            <span>Contraseña</span>
-            <code>{password}</code>
-          </div>
-          <button
-            className="button secondary"
-            onClick={async () => {
-              await navigator.clipboard.writeText(
-                `Usuario: ${created.username}\nContraseña: ${password}`,
-              );
-              setCopied(true);
-            }}
-          >
-            <Copy size={18} />
-            {copied ? 'Copiado' : 'Copiar acceso'}
-          </button>
-          <p className="help-text">
-            Esta contraseña no volverá a mostrarse. Si se pierde, podrás generar una nueva.
-          </p>
+          <AccessCredentials username={created.username} password={created.password} />
           <div className="form-actions">
             <button className="button primary" onClick={onClose}>
               Listo
@@ -209,14 +269,16 @@ function CreateEmployee({ onClose }: { onClose: () => void }) {
           onCancel={onClose}
           submitLabel="Crear acceso"
           onSubmit={async (data) => {
-            await reauthenticate({ password: String(data.get('adminPassword')) });
+            const error = passwordError(password, role);
+            if (error) throw new Error(error);
+            const username = textValue(data, 'username').toLowerCase();
             await create({
               name: textValue(data, 'name'),
-              username: textValue(data, 'username'),
+              username,
               password,
-              role: textValue(data, 'role') as 'worker' | 'admin',
+              role,
             });
-            setCreated({ name: textValue(data, 'name'), username: textValue(data, 'username') });
+            setCreated({ name: textValue(data, 'name'), username, password });
           }}
         >
           <Field label="Nombre y apellidos">
@@ -245,20 +307,16 @@ function CreateEmployee({ onClose }: { onClose: () => void }) {
             />
           </Field>
           <Field label="Perfil">
-            <select name="role" defaultValue="worker">
+            <select
+              name="role"
+              value={role}
+              onChange={(event) => setRole(event.target.value as Employee['role'])}
+            >
               <option value="worker">Trabajador</option>
               <option value="admin">Administración</option>
             </select>
           </Field>
-          <div className="form-divider">
-            <ShieldCheck size={17} /> Confirmar tu identidad
-          </div>
-          <Field label="Tu contraseña de administración">
-            <input name="adminPassword" type="password" autoComplete="current-password" required />
-          </Field>
-          <p className="help-text">
-            Generaremos una contraseña segura para esta persona. Se mostrará una sola vez.
-          </p>
+          <PasswordField label="Contraseña" role={role} value={password} onChange={setPassword} />
         </Form>
       )}
     </Modal>
@@ -427,7 +485,14 @@ function EmployeeDetails({
           onClose={() => setPeriod(null)}
         />
       )}
-      {access && <AccessForm employee={employee} mode={access} onClose={() => setAccess(null)} />}
+      {access && (
+        <AccessForm
+          employee={employee}
+          mode={access}
+          isSelf={isSelf}
+          onClose={() => setAccess(null)}
+        />
+      )}
     </Modal>
   );
 }
@@ -515,16 +580,19 @@ function PeriodForm({
 function AccessForm({
   employee,
   mode,
+  isSelf,
   onClose,
 }: {
   employee: Employee;
   mode: 'reset' | 'revoke';
+  isSelf: boolean;
   onClose: () => void;
 }) {
   const reset = useAction(api.admin.resetPassword);
   const revoke = useAction(api.admin.revokeSessions);
   const reauthenticate = useAction(api.admin.reauthenticate);
-  const [password] = useState(generatedPassword);
+  const [password, setPassword] = useState('');
+  const [savedPassword, setSavedPassword] = useState('');
   const [done, setDone] = useState(false);
   return (
     <Modal title={mode === 'reset' ? 'Cambiar contraseña' : 'Cerrar sesiones'} onClose={onClose}>
@@ -538,12 +606,7 @@ function AccessForm({
           {mode === 'reset' && (
             <>
               <p>Entrega este acceso a {employee.name}.</p>
-              <div className="credentials">
-                <span>Usuario</span>
-                <strong>{employee.username}</strong>
-                <span>Nueva contraseña</span>
-                <code>{password}</code>
-              </div>
+              <AccessCredentials username={employee.username} password={savedPassword} />
             </>
           )}
           <button className="button primary" onClick={onClose}>
@@ -555,29 +618,34 @@ function AccessForm({
           onCancel={onClose}
           submitLabel={mode === 'reset' ? 'Activar nueva contraseña' : 'Cerrar sus sesiones'}
           onSubmit={async (data) => {
-            await reauthenticate({ password: String(data.get('password')) });
+            if (mode === 'reset') {
+              const error = passwordError(password, employee.role);
+              if (error) throw new Error(error);
+            }
+            await reauthenticate({ password: String(data.get('adminPassword')) });
             if (mode === 'reset') await reset({ employeeId: employee._id, password });
             else await revoke({ employeeId: employee._id });
+            setSavedPassword(password);
             setDone(true);
           }}
         >
           <p>{employee.name} tendrá que volver a identificarse en sus dispositivos.</p>
           {mode === 'reset' && (
-            <>
-              <div className="credentials">
-                <span>Usuario</span>
-                <strong>{employee.username}</strong>
-                <span>Nueva contraseña</span>
-                <code>{password}</code>
-              </div>
-              <label className="checkbox-field">
-                <input type="checkbox" required />
-                <span>He guardado la nueva contraseña para poder volver a entrar.</span>
-              </label>
-            </>
+            <PasswordField
+              label="Nueva contraseña"
+              role={employee.role}
+              value={password}
+              onChange={setPassword}
+            />
+          )}
+          {mode === 'reset' && isSelf && (
+            <label className="checkbox-field">
+              <input type="checkbox" required />
+              <span>He guardado mi nueva contraseña para poder volver a entrar.</span>
+            </label>
           )}
           <Field label="Tu contraseña de administración">
-            <input type="password" name="password" autoComplete="current-password" required />
+            <input type="password" name="adminPassword" autoComplete="current-password" required />
           </Field>
         </Form>
       )}

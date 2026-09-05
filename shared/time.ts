@@ -161,6 +161,15 @@ export function dayBounds(date: string): TimeBounds {
   return { startAt, endAt: parseDateTimeLocal(`${nextDate(date)}T00:00`) };
 }
 
+/** Both calendar dates are inclusive; the returned ending instant is exclusive. */
+export function dateRangeBounds(startDate: string, endDate: string): TimeBounds {
+  if (!startDate || !endDate) throw new Error('Selecciona las fechas Desde y Hasta.');
+  const startAt = parseDateTimeLocal(`${startDate}T00:00`);
+  const endAt = dayBounds(endDate).endAt;
+  if (startDate > endDate) throw new Error('La fecha Desde debe ser anterior o igual a Hasta.');
+  return { startAt, endAt };
+}
+
 /** End is exclusive. March/October may contain one hour less/more than 24 × days. */
 export function monthBounds(month: string): TimeBounds {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error('El mes no es válido.');

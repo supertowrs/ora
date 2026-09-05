@@ -2,7 +2,7 @@ import { getAuthSessionId, getAuthUserId } from '@convex-dev/auth/server';
 import { ConvexError } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import type { MutationCtx, QueryCtx } from './_generated/server';
-import { localDate, monthBounds } from '../shared/time';
+import { localDate, monthBounds, type TimeBounds } from '../shared/time';
 
 type ReadCtx = QueryCtx | MutationCtx;
 export function fail(message: string): never {
@@ -88,15 +88,22 @@ export async function openSession(ctx: ReadCtx, employeeId: Id<'employees'>) {
   return active[0] ?? null;
 }
 export async function monthSessions(ctx: ReadCtx, employeeId: Id<'employees'>, month: string) {
-  const bounds = monthBounds(month);
+  return periodSessions(ctx, employeeId, monthBounds(month));
+}
+export async function periodSessions(
+  ctx: ReadCtx,
+  employeeId: Id<'employees'>,
+  bounds: TimeBounds,
+) {
   const rows = await ctx.db
     .query('sessions')
     .withIndex('by_employeeId_and_startAt', (q) =>
       q.eq('employeeId', employeeId).gte('startAt', bounds.startAt).lt('startAt', bounds.endAt),
     )
     .take(501);
-  if (rows.length > 500) fail('Demasiados tramos en un mes. Solicita una exportación técnica.');
-  // At most one non-overlapping closed interval can cross the month boundary.
+  if (rows.length > 500)
+    fail('Demasiados tramos. Selecciona un periodo más corto o solicita una exportación técnica.');
+  // At most one non-overlapping closed interval can cross the period boundary.
   const previous = await ctx.db
     .query('sessions')
     .withIndex('by_employeeId_and_startAt', (q) =>
@@ -114,13 +121,22 @@ export async function monthSessions(ctx: ReadCtx, employeeId: Id<'employees'>, m
 }
 export async function monthIncidents(ctx: ReadCtx, employeeId: Id<'employees'>, month: string) {
   monthBounds(month);
+  return periodIncidents(ctx, employeeId, `${month}-01`, `${month}-31`);
+}
+export async function periodIncidents(
+  ctx: ReadCtx,
+  employeeId: Id<'employees'>,
+  startDate: string,
+  endDate: string,
+) {
   const rows = await ctx.db
     .query('incidents')
     .withIndex('by_employeeId_and_date', (q) =>
-      q.eq('employeeId', employeeId).gte('date', `${month}-01`).lte('date', `${month}-31`),
+      q.eq('employeeId', employeeId).gte('date', startDate).lte('date', endDate),
     )
     .take(200);
-  if (rows.length === 200) fail('Demasiadas incidencias en el mes. Solicita exportación técnica.');
+  if (rows.length === 200)
+    fail('Demasiados avisos. Selecciona un periodo más corto o solicita una exportación técnica.');
   return rows;
 }
 export async function sessionCorrections(ctx: ReadCtx, sessions: Doc<'sessions'>[]) {
@@ -136,14 +152,21 @@ export async function sessionCorrections(ctx: ReadCtx, sessions: Doc<'sessions'>
     fail('Demasiadas rectificaciones: solicita exportación técnica.');
   return all.flat().sort((a, b) => b.createdAt - a.createdAt);
 }
-/** A moved entry remains explained in both its original and its current month. */
 export async function monthCorrections(
   ctx: ReadCtx,
   employeeId: Id<'employees'>,
   month: string,
   sessions: Doc<'sessions'>[],
 ) {
-  const { startAt, endAt } = monthBounds(month);
+  return periodCorrections(ctx, employeeId, monthBounds(month), sessions);
+}
+/** A moved entry remains explained in both its original and its current period. */
+export async function periodCorrections(
+  ctx: ReadCtx,
+  employeeId: Id<'employees'>,
+  { startAt, endAt }: TimeBounds,
+  sessions: Doc<'sessions'>[],
+) {
   const [current, before, after, beforeCross, afterCross, beforeOpen, afterOpen] =
     await Promise.all([
       sessionCorrections(ctx, sessions),
@@ -160,7 +183,7 @@ export async function monthCorrections(
         )
         .take(501),
       // Also retain evidence for an overnight/long/open entry removed from this
-      // month by correcting its end. Such an entry can begin in an earlier month.
+      // period by correcting its end. Such an entry can begin in an earlier period.
       ctx.db
         .query('corrections')
         .withIndex('by_employeeId_and_before_endAt', (q) =>
@@ -210,7 +233,9 @@ export async function monthCorrections(
     [...current, ...before, ...after, ...cross].map((correction) => [correction._id, correction]),
   );
   if (unique.size > 500)
-    fail('Demasiadas rectificaciones en el mes. Solicita exportación técnica.');
+    fail(
+      'Demasiadas rectificaciones. Selecciona un periodo más corto o solicita exportación técnica.',
+    );
   return [...unique.values()].sort((a, b) => b.createdAt - a.createdAt);
 }
 export async function verifyNoOverlap(
