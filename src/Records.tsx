@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
-import { ClipboardList, Clock3, History, Pencil, Plus } from 'lucide-react';
+import { ClipboardList, Clock3, Download, History, Pencil, Plus } from 'lucide-react';
 import { api } from '../convex/_generated/api';
 import type { Id } from '../convex/_generated/dataModel';
 import { formatDate, formatDuration, formatTime, localMonth } from '../shared/time';
+import { recordsCsv, recordsCsvFilename } from '../shared/records';
 import type { Correction, Employee, Session, Store } from './types';
 import {
   Badge,
@@ -16,6 +17,7 @@ import {
   Notice,
   PageHeader,
   dateTimeValue,
+  downloadBlob,
   textValue,
 } from './components/ui';
 import { ResolveIncident, incidentLabel } from './Admin';
@@ -43,6 +45,23 @@ export function Records() {
         title="Cada hora cuenta."
         description="Consulta lo registrado y corrige los olvidos con su motivo."
       >
+        <button
+          className="button secondary"
+          disabled={!data?.sessions.length}
+          onClick={() => {
+            if (!data?.sessions.length) return;
+            downloadBlob(
+              new Blob([recordsCsv(data)], { type: 'text/csv;charset=utf-8' }),
+              recordsCsvFilename({
+                month,
+                employeeName: data.employees.find((employee) => employee._id === employeeId)?.name,
+                storeName: data.stores.find((store) => store._id === storeId)?.name,
+              }),
+            );
+          }}
+        >
+          <Download size={18} /> Descargar CSV
+        </button>
         <button className="button primary" onClick={() => setEditing('new')} disabled={!data}>
           <Plus size={18} /> Añadir registro
         </button>

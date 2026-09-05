@@ -57,6 +57,8 @@ Un fichaje solo queda confirmado cuando responde el servidor. Ante pérdida de c
 
 La administradora revisa las incidencias y los tramos abiertos, emite el resumen de un mes terminado y comprueba con gestoría el desglose de horas. Los informes emitidos conservan su versión; una rectificación posterior requiere emitir otra. CSV e impresión permiten descargar los documentos sin contratar un servicio. Registrar una entrega exige indicar cuándo y por qué medio se realizó.
 
+En **Registros → Descargar CSV** se descargan los tramos del mes, empleado y tienda seleccionados, también durante el mes en curso. El archivo se abre sin contraseña e incluye entradas y salidas con segundos, duración del tramo, estado y origen. Los tramos abiertos tienen la duración vacía y los anulados se identifican expresamente. Si un tramo cruza de mes, conserva sus fechas y duración completas: esta descarga muestra los registros actuales, no un total mensual ni una versión emitida del informe.
+
 ## Copias y recuperación
 
 Cada semana descargar la copia cifrada desde Informes y guardarla fuera de la aplicación, junto con una contraseña de recuperación conservada por separado. El archivo contiene datos laborales, correcciones e informes; no contraseñas ni sesiones. El indicador de última copia acredita su generación, no que el archivo siga disponible en el destino externo.
