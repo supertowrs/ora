@@ -5,20 +5,20 @@
 - Actúa como un ingeniero senior: sé conciso, directo y enfocado en terminar la tarea.
 - Prefiere la solución más pequeña, explícita y mantenible. Evita abstracciones, capas y dependencias que no resuelvan una necesidad concreta.
 - Comunica en español. Conserva los cambios ajenos y limita cada modificación al alcance solicitado.
-- Usa `rtk` como prefijo de los comandos de terminal; `rtk proxy` ejecuta sin filtrar la salida. En esta máquina, la referencia es `/Users/david/.codex/RTK.md`.
+- Usa `rtk` como prefijo de los comandos de terminal; `rtk proxy` ejecuta sin filtrar la salida.
 - No uses OpenSpec. No crees procesos de aprobación adicionales; respeta la autorización del usuario para cada tarea, incluido el destino de los commits.
 
 ## Producto y alcance
 
-Registro horario para una empresa con dos tiendas en Sevilla, hasta diez empleados y administración desde escritorio. Los trabajadores fichan desde su móvil, conservan la sesión y pueden alternar tiendas. La interfaz debe ser muy sencilla: texto claro, botones grandes y pocas decisiones.
+Registro horario para una empresa con dos tiendas, hasta diez empleados y administración desde escritorio. Los trabajadores fichan desde su móvil, conservan la sesión y pueden alternar tiendas. La interfaz debe ser muy sencilla: texto claro, botones grandes y pocas decisiones.
 
 El presupuesto de alojamiento y base de datos es **0 €**. Mantén Vercel y Convex; no actives planes de pago, cobro por uso, dominios, SMS, correo ni servicios adicionales sin una nueva instrucción explícita. No añadas nóminas, planificación de turnos, geolocalización, biometría o una arquitectura para múltiples empresas al alcance actual.
 
-Lee primero [README.md](README.md) para ejecutar y operar la aplicación y [PLAN_IMPLEMENTACION.md](PLAN_IMPLEMENTACION.md) para las decisiones del producto. [VERIFICACION.md](VERIFICACION.md) registra pruebas históricas y limitaciones; no prueba por sí solo el estado actual del servicio. Para recuperación, consulta [docs/RECUPERACION.md](docs/RECUPERACION.md).
+Lee primero [README.md](README.md) para conocer el producto, ejecutar la aplicación y configurar un despliegue. Para recuperación, consulta [docs/RECUPERACION.md](docs/RECUPERACION.md).
 
 ## Arquitectura
 
-React + TypeScript + Vite, CSS propio y Convex Auth con usuario y contraseña. Vercel sirve una SPA estática; Convex ejecuta las funciones y almacena los datos en Irlanda. No hay Next.js ni un servidor propio.
+React + TypeScript + Vite, CSS propio y Convex Auth con usuario y contraseña. Vercel sirve una SPA estática; Convex ejecuta las funciones y almacena los datos en la región elegida para el despliegue. No hay Next.js ni un servidor propio.
 
 | Ruta                                                                  | Responsabilidad                                                                                              |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -58,10 +58,10 @@ rtk proxy npm run check           # Tipos, pruebas y compilación
 ## Entornos y datos
 
 - Identifica y anuncia el despliegue efectivo antes de ejecutar `dev`, `deploy`, mutaciones, importaciones o cambios de variables. Contrasta `.env.local`, variables del proceso y opciones de la CLI.
-- La configuración inicial conecta `https://ora-one-rho.vercel.app` con **`dev:accurate-bass-175`**, Irlanda. Verifica que siga siendo así; el alias de producción de Vercel no determina el entorno de Convex.
-- Los pushes a `main` de `supertowrs/ora` despliegan automáticamente frontend y backend desde Vercel, después de ejecutar `npm run check`. `scripts/deploy-vercel.mjs` verifica rama, entorno y clave; las demás ramas no se despliegan. Un push a `main` es también una operación sobre el backend actual. No añadas un segundo despliegue paralelo en GitHub Actions ni uses la clave de este backend en previews.
-- El usuario ya ha empezado a preparar las cuentas definitivas. **Un despliegue etiquetado como desarrollo puede contener datos reales.** No lo uses como base desechable, no insertes fixtures ni ejecutes restauraciones sobre él sin que la tarea lo autorice.
-- `prueba.ana` y `prueba.api` fueron eliminados después de las pruebas iniciales. No los recrees automáticamente ni reutilices credenciales antiguas.
+- Verifica qué backend usa cada instalación; el alias de producción de Vercel no determina el entorno de Convex. El destino permitido para la publicación se comprueba en `scripts/deploy-vercel.mjs`.
+- Los pushes a `main` del repositorio conectado a Vercel despliegan automáticamente frontend y backend desde Vercel, después de ejecutar `npm run check`. `scripts/deploy-vercel.mjs` verifica rama, entorno y clave; las demás ramas no se despliegan. Un push a `main` es también una operación sobre el backend actual. No añadas un segundo despliegue paralelo en GitHub Actions ni uses la clave de este backend en previews.
+- **Un despliegue etiquetado como desarrollo puede contener datos reales.** No lo uses como base desechable, no insertes fixtures ni ejecutes restauraciones sobre él sin que la tarea lo autorice.
+- Crea cuentas de prueba solo en entornos aislados y no reutilices credenciales de otras instalaciones.
 - Las restauraciones se hacen en un destino vacío y aislado. No sobrescribas el registro operativo ni copies datos reales a previews para probar cambios.
 - No incluyas secretos, contraseñas, exportaciones o datos laborales en Git, logs o despliegues. Respeta `.gitignore` y `.vercelignore`; `.local/`, `.env.local`, `.vercel/`, `.playwright-cli/` y `output/` son privados o generados.
 - Antes de hacer commit, revisa el diff preparado y el destino del push. No fuerces `main`, no sobrescribas historia ajena y no despliegues por el mero hecho de editar documentación.
@@ -77,7 +77,7 @@ rtk proxy npm run check           # Tipos, pruebas y compilación
 - Cambiar o desactivar un horario no recalcula registros anteriores. Una salida pendiente solo puede cerrar su tramo vinculado si sigue intacto; respeta las intervenciones manuales, las correcciones y las anulaciones.
 - Una corrección conserva valores anteriores, valores nuevos, autor y motivo, y sigue siendo visible al trabajador, incluso si mueve un registro a otro mes.
 - Los informes emitidos son versiones congeladas. Una corrección posterior requiere otra versión; no recalcules el informe antiguo. El desglose de horas se revisa explícitamente y la entrega registra su fecha y medio reales.
-- No borres registros laborales por rutina ni al desactivar una cuenta. Conserva el historial y el plazo de conservación definido en el plan; una limpieza de datos ficticios no es una función de borrado general.
+- No borres registros laborales por rutina ni al desactivar una cuenta. Conserva el historial y el plazo de conservación de cuatro años previsto para los registros; una limpieza de datos ficticios no es una función de borrado general.
 - Las copias manuales son cifradas, se guardan fuera de la app y excluyen contraseñas y sesiones. Poder exportar no demuestra poder recuperar: conserva el ensayo de restauración y la comprobación de relaciones e informes.
 
 ## Validación y entrega

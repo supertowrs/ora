@@ -10,5 +10,3 @@ output
 output/**
 node_modules
 AGENTS.md
-PLAN_IMPLEMENTACION.md
-API_CONTRACT.md
